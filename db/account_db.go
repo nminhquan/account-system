@@ -1,29 +1,31 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
-	"mas/db/model"
+	"go.etcd.io/etcd/etcdserver/api/snap"
+	. "mas/db/model"
+	"sync"
 )
 
 type AccountDB struct {
-	db *MasDB
+	*MasDB
+	db       *MasDB
+	commitC  <-chan *string
+	proposeC chan<- string
+	mu       sync.RWMutex
+	// snapShooter *snap.Snapshotter
 }
 
-func CreateAccountDB(host string, userName string, password string) *AccountDB {
+func CreateAccountDB(host string, userName string, password string, commitC <-chan *string, proposeC chan<- string, snapshotterReady <-chan *snap.Snapshotter) *AccountDB {
 	masDB := CreateDB(host, userName, password)
-	return &AccountDB{masDB}
+	return &AccountDB{db: masDB, commitC: commitC, proposeC: proposeC}
 }
 
-func (accDB *AccountDB) Close() {
-	accDB.db.Close()
+func (accDB *AccountDB) ProposeCommit() {
+
 }
 
-func (accDB *AccountDB) DB() *sql.DB {
-	return accDB.db.DB()
-}
-
-func (accDB *AccountDB) InsertAccountInfoToDB(accInfo model.AccountInfo) int64 {
+func (accDB *AccountDB) InsertAccountInfoToDB(accInfo AccountInfo) int64 {
 	db := accDB.DB()
 	var accId int64
 	rows, err := db.Exec("insert into account_table(account_number, current_balance) values (?, ?) ", accInfo.Number, accInfo.Balance)
@@ -36,7 +38,7 @@ func (accDB *AccountDB) InsertAccountInfoToDB(accInfo model.AccountInfo) int64 {
 	return accId
 }
 
-func (accDB *AccountDB) GetAccountInfoFromDB(accountNumber string) *model.AccountInfo {
+func (accDB *AccountDB) GetAccountInfoFromDB(accountNumber string) *AccountInfo {
 
 	return nil
 }

@@ -1,16 +1,13 @@
 package main
 
-import "fmt"
-import "mas/coordinator"
-import "mas/db"
-import _ "mas/db/model"
+import (
+	"fmt"
+	"log"
+	"mas/consensus"
+)
 
 func main() {
-	accountDB := db.CreateAccountDB("localhost", "root", "123456")
-	defer accountDB.Close()
-	var accountService coordinator.AccountService = coordinator.CreateAccountService(accountDB)
-
-	//create account
-	var accountId = accountService.CreateAccount("acc_number:1233124124", 0.0)
-	fmt.Println(accountId)
+	consensus.RaftInit()
+	log.Println("Server created")
+	fmt.Scanln()
 }

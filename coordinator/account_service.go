@@ -6,8 +6,8 @@ import "mas/db"
 const DEFAULT_BALANCE float64 = 0.0
 
 type AccountService interface {
-	CreateAccount(string, float32) int64
-	// GetAccount(int) AccountInfo
+	CreateAccount(string, float64) int64
+	GetAccount(string) *model.AccountInfo
 }
 
 type AccountServiceImpl struct {
@@ -17,7 +17,7 @@ type AccountServiceImpl struct {
 func CreateAccountService(accDb *db.AccountDB) *AccountServiceImpl {
 	return &AccountServiceImpl{accDb}
 }
-func (acc *AccountServiceImpl) CreateAccount(accountNumber string, balance float32) int64 {
+func (acc *AccountServiceImpl) CreateAccount(accountNumber string, balance float64) int64 {
 	accInfo := model.AccountInfo{Number: accountNumber, Balance: DEFAULT_BALANCE}
 	return acc.accDb.InsertAccountInfoToDB(accInfo)
 }
