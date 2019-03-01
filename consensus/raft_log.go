@@ -16,6 +16,7 @@ func (rc *RaftNode) replayWAL() *wal.WAL {
 	log.Printf("replaying WAL of member %d", rc.id)
 	snapshot := rc.loadSnapshot()
 	w := rc.openWAL(snapshot)
+
 	_, st, ents, err := w.ReadAll()
 	if err != nil {
 		log.Fatalf("raftexample: failed to read WAL (%v)", err)
@@ -25,6 +26,7 @@ func (rc *RaftNode) replayWAL() *wal.WAL {
 		rc.raftStorage.ApplySnapshot(*snapshot)
 	}
 	rc.raftStorage.SetHardState(st)
+	log.Printf("ents %v", ents)
 
 	// append to storage so raft starts at the right place in log
 	rc.raftStorage.Append(ents)
@@ -32,8 +34,11 @@ func (rc *RaftNode) replayWAL() *wal.WAL {
 	if len(ents) > 0 {
 		rc.lastIndex = ents[len(ents)-1].Index
 	} else {
+		log.Printf("Sending nil to commitC: %v", rc.commitC)
 		rc.commitC <- nil
 	}
+
+	log.Printf("replaying w of member %v", w)
 	return w
 }
 

@@ -2,30 +2,21 @@ package db
 
 import (
 	"fmt"
-	"go.etcd.io/etcd/etcdserver/api/snap"
-	. "mas/db/model"
-	"sync"
+	"log"
+	. "mas/model"
 )
 
 type AccountDB struct {
 	*MasDB
-	db       *MasDB
-	commitC  <-chan *string
-	proposeC chan<- string
-	mu       sync.RWMutex
-	// snapShooter *snap.Snapshotter
 }
 
-func CreateAccountDB(host string, userName string, password string, commitC <-chan *string, proposeC chan<- string, snapshotterReady <-chan *snap.Snapshotter) *AccountDB {
+func CreateAccountDB(host string, userName string, password string) *AccountDB {
 	masDB := CreateDB(host, userName, password)
-	return &AccountDB{db: masDB, commitC: commitC, proposeC: proposeC}
-}
-
-func (accDB *AccountDB) ProposeCommit() {
-
+	return &AccountDB{masDB}
 }
 
 func (accDB *AccountDB) InsertAccountInfoToDB(accInfo AccountInfo) int64 {
+	log.Printf("AccountDB::InsertAccountInfoToDB")
 	db := accDB.DB()
 	var accId int64
 	rows, err := db.Exec("insert into account_table(account_number, current_balance) values (?, ?) ", accInfo.Number, accInfo.Balance)
@@ -34,7 +25,7 @@ func (accDB *AccountDB) InsertAccountInfoToDB(accInfo AccountInfo) int64 {
 	} else {
 		accId, err = rows.LastInsertId()
 	}
-
+	log.Printf("AccountDB::InsertAccountInfoToDB success return ID = %v", accId)
 	return accId
 }
 

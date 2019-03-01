@@ -18,7 +18,7 @@ import (
 	"go.etcd.io/etcd/raft"
 	"go.etcd.io/etcd/raft/raftpb"
 	"go.etcd.io/etcd/wal"
-	// TODO: "go.uber.org/zap"
+	"go.uber.org/zap"
 )
 
 // A key-value stream backed by raft
@@ -56,7 +56,8 @@ type RaftNode struct {
 }
 
 func NewRaftNode(id int, peers []string, join bool, proposeC <-chan string,
-	confChangeC <-chan raftpb.ConfChange) (<-chan *string, <-chan error, <-chan *snap.Snapshotter) {
+	confChangeC <-chan raftpb.ConfChange) (<-chan *string, <-chan error, <-chan *snap.Snapshotter, *RaftNode) {
+	log.Printf("Creating new raft node: %d %v", id, peers)
 	commitC := make(chan *string)
 	errorC := make(chan error)
 
@@ -68,8 +69,8 @@ func NewRaftNode(id int, peers []string, join bool, proposeC <-chan string,
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("raftexample-%d", id),
-		snapdir:     fmt.Sprintf("raftexample-%d-snap", id),
+		waldir:      fmt.Sprintf("log/raftexample-%d", id),
+		snapdir:     fmt.Sprintf("log/raftexample-%d-snap", id),
 		// TODO: getSnapshot: getSnapshot,
 		snapCount: 1000000,
 		stopc:     make(chan struct{}),
@@ -82,7 +83,7 @@ func NewRaftNode(id int, peers []string, join bool, proposeC <-chan string,
 
 	go rc.startRaft()
 
-	return commitC, errorC, rc.snapshotterReady
+	return commitC, errorC, rc.snapshotterReady, rc
 
 }
 
@@ -93,10 +94,13 @@ func (rc *RaftNode) startRaft() {
 		}
 	}
 	// TODO: rc.snapshotter = snap.New(zap.NewExample(), rc.snapdir)
-	// TODO: rc.snapshotterReady <- rc.snapshotter
+	rc.snapshotter = snap.New(nil, rc.snapdir)
+	rc.snapshotterReady <- rc.snapshotter
 
 	oldwal := wal.Exist(rc.waldir)
-	rc.wal = rc.replayWAL()
+	// rc.wal = rc.replayWAL()
+
+	rc.raftStorage = raft.NewMemoryStorage()
 
 	rpeers := make([]raft.Peer, len(rc.peers))
 	for i := range rpeers {
@@ -123,7 +127,7 @@ func (rc *RaftNode) startRaft() {
 	}
 
 	rc.transport = &rafthttp.Transport{
-		// TODO: Logger:      zap.NewExample(),
+		Logger:      zap.NewExample(),
 		ID:          types.ID(rc.id),
 		ClusterID:   0x1000,
 		Raft:        rc,
@@ -146,6 +150,7 @@ func (rc *RaftNode) startRaft() {
 // publishEntries writes committed log entries to commit channel and returns
 // whether all entries could be published.
 func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
+	// log.Printf("publishEntries: Write entries %v", ents)
 	for i := range ents {
 		switch ents[i].Type {
 		// publish entry normal
@@ -157,6 +162,7 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 			s := string(ents[i].Data)
 			select {
 			case rc.commitC <- &s:
+				log.Printf("publishEntries: Sending data to commitC: %v", s)
 			case <-rc.stopc:
 				return false
 			}
@@ -187,6 +193,7 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 		if ents[i].Index == rc.lastIndex {
 			select {
 			case rc.commitC <- nil:
+				log.Printf("special nil commit to signal replay has finished")
 			case <-rc.stopc:
 				return false
 			}
@@ -196,21 +203,31 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 }
 
 func (rc *RaftNode) sendProposal() {
+	log.Println("START sendProposal")
 	// send proposals over raft
 	go func() {
 		confChangeCount := uint64(0)
 
 		for rc.proposeC != nil && rc.confChangeC != nil {
+
 			select {
-			case prop, ok := <-rc.proposeC:
+			case prop, ok := <-rc.proposeC: // receive proposal from proposeC
+				log.Println("waiting proposeC")
 				if !ok {
+					log.Println("START sendProposal 2222")
 					rc.proposeC = nil
 				} else {
 					// blocks until accepted by raft state machine
-					rc.node.Propose(context.TODO(), []byte(prop))
+					log.Printf("Sending nodes proposal: %v", prop)
+					err := rc.node.Propose(context.TODO(), []byte(prop))
+					if err != nil {
+						log.Fatalf("error: %v\n", err)
+					}
+					log.Println("DONE SENDING PROPOSAL")
 				}
 
-			case cc, ok := <-rc.confChangeC:
+			case cc, ok := <-rc.confChangeC: // receive proposal from confChangeC
+				log.Println("waiting confChangeC")
 				if !ok {
 					rc.confChangeC = nil
 				} else {
@@ -241,6 +258,7 @@ func (rc *RaftNode) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
 }
 
 func (rc *RaftNode) serveChannels() {
+	log.Println("START serveChannels")
 	snap, err := rc.raftStorage.Snapshot()
 	if err != nil {
 		panic(err)
@@ -261,12 +279,14 @@ func (rc *RaftNode) serveChannels() {
 	for {
 		select {
 		case <-ticker.C:
+			// log.Printf("[Raftnode: %d] tick\n", rc.id)
 			rc.node.Tick()
 
 		// store raft entries to wal, then publish over commit channel
 		case rd := <-rc.node.Ready():
+			// log.Println("serveChannels::Ready()")
 			// store raft entries to wal
-			rc.wal.Save(rd.HardState, rd.Entries)
+			// TODO:rc.wal.Save(rd.HardState, rd.Entries)
 			if !raft.IsEmptySnap(rd.Snapshot) {
 				// TODO: rc.saveSnap(rd.Snapshot)
 				rc.raftStorage.ApplySnapshot(rd.Snapshot)
@@ -282,10 +302,12 @@ func (rc *RaftNode) serveChannels() {
 			rc.node.Advance()
 
 		case err := <-rc.transport.ErrorC:
+			log.Println("serveChannels::transportError")
 			rc.writeError(err)
 			return
 
 		case <-rc.stopc:
+			log.Println("serveChannels::stop")
 			rc.stop()
 			return
 		}
@@ -293,6 +315,7 @@ func (rc *RaftNode) serveChannels() {
 }
 
 func (rc *RaftNode) serveRaft() {
+	log.Println("START serveRaft")
 	url, err := url.Parse(rc.peers[rc.id-1])
 	if err != nil {
 		log.Fatalf("raftexample: Failed parsing URL (%v)", err)
@@ -310,6 +333,7 @@ func (rc *RaftNode) serveRaft() {
 		log.Fatalf("raftexample: Failed to serve rafthttp (%v)", err)
 	}
 	close(rc.httpdonec)
+	log.Println("END serveRaft")
 }
 
 func (rc *RaftNode) writeError(err error) {
@@ -340,3 +364,4 @@ func (rc *RaftNode) Process(ctx context.Context, m raftpb.Message) error {
 func (rc *RaftNode) IsIDRemoved(id uint64) bool                           { return false }
 func (rc *RaftNode) ReportUnreachable(id uint64)                          {}
 func (rc *RaftNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {}
+func (rc *RaftNode) Node() raft.Node                                      { return rc.node }
