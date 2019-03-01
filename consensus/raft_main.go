@@ -9,8 +9,9 @@ import (
 type RaftClusterConfig struct {
 	Cluster *string
 	Id      *int
-	DBport  *int
+	RPCPort *string
 	Join    *bool
+	DBName  *string
 }
 
 type RaftClusterInfo struct {

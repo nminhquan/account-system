@@ -16,11 +16,12 @@ import (
 func makeConfig() consensus.RaftClusterConfig {
 	cluster := flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
 	id := flag.Int("id", 1, "node ID")
-	dbport := flag.Int("port", 9121, "key-value server port")
+	dbport := flag.String("port", "9121", "rpc port")
 	join := flag.Bool("join", false, "join an existing cluster")
+	dbName := flag.String("db", "mas", "db Name")
 	flag.Parse()
 
-	clusterConfig := consensus.RaftClusterConfig{cluster, id, dbport, join}
+	clusterConfig := consensus.RaftClusterConfig{cluster, id, dbport, join, dbName}
 	return clusterConfig
 }
 
@@ -29,10 +30,10 @@ func TestStartingRaftNode(t *testing.T) {
 	log.Println("Raft node created")
 }
 func TestProposeCWhenPropose(t *testing.T) {
-	consensus.RaftInit(makeConfig())
+	clusterInfo := consensus.RaftInit(makeConfig())
 	log.Println("Raft node created")
 
-	accountDB := db.CreateAccountDB("localhost", "root", "123456")
+	accountDB := db.CreateAccountDB("localhost", "root", "123456", "abc")
 	accountServ := coordinator.CreateAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, clusterInfo.SnapshotterReady)
 	go accountServ.ReadCommits(clusterInfo.CommitC, clusterInfo.ErrorC)
 	account := &model.AccountInfo{1, "1235", 1000.0}

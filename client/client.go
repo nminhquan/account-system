@@ -13,7 +13,7 @@ import (
 
 const (
 	address                   = "localhost:50051"
-	defaultAccountNum         = "0000"
+	defaultAccountNum         = "1100"
 	defaultAccountBal float64 = 0.0
 )
 

@@ -13,7 +13,7 @@ func createFakeDB() *FakeDB {
 	return &fakeDB
 }
 func TestDBConnection(t *testing.T) {
-	dbTest := db.CreateDB("localhost", "root", "123456")
+	dbTest := db.CreateSQLite3DB("localhost", "root", "123456", "acb")
 	if dbTest == nil {
 		t.Error("create DB error")
 	} else {
@@ -26,7 +26,7 @@ func TestDBConnection(t *testing.T) {
 }
 
 func RunQuery(masDB *sql.DB) string {
-	results, err := masDB.Query("SELECT @@VERSION")
+	results, err := masDB.Query("SELECT 1")
 
 	if err != nil {
 		panic(err.Error())

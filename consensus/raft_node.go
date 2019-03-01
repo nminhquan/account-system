@@ -57,7 +57,6 @@ type RaftNode struct {
 
 func NewRaftNode(id int, peers []string, join bool, proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange) (<-chan *string, <-chan error, <-chan *snap.Snapshotter, *RaftNode) {
-	log.Printf("Creating new raft node: %d %v", id, peers)
 	commitC := make(chan *string)
 	errorC := make(chan error)
 
@@ -93,12 +92,12 @@ func (rc *RaftNode) startRaft() {
 			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
 		}
 	}
-	// TODO: rc.snapshotter = snap.New(zap.NewExample(), rc.snapdir)
-	rc.snapshotter = snap.New(nil, rc.snapdir)
+
+	rc.snapshotter = snap.New(zap.NewExample(), rc.snapdir)
 	rc.snapshotterReady <- rc.snapshotter
 
 	oldwal := wal.Exist(rc.waldir)
-	// rc.wal = rc.replayWAL()
+	// TODO: rc.wal = rc.replayWAL()
 
 	rc.raftStorage = raft.NewMemoryStorage()
 
@@ -127,7 +126,7 @@ func (rc *RaftNode) startRaft() {
 	}
 
 	rc.transport = &rafthttp.Transport{
-		Logger:      zap.NewExample(),
+		// Logger:      zap.NewExample(),
 		ID:          types.ID(rc.id),
 		ClusterID:   0x1000,
 		Raft:        rc,
@@ -209,10 +208,8 @@ func (rc *RaftNode) sendProposal() {
 		confChangeCount := uint64(0)
 
 		for rc.proposeC != nil && rc.confChangeC != nil {
-
 			select {
 			case prop, ok := <-rc.proposeC: // receive proposal from proposeC
-				log.Println("waiting proposeC")
 				if !ok {
 					log.Println("START sendProposal 2222")
 					rc.proposeC = nil
@@ -227,7 +224,6 @@ func (rc *RaftNode) sendProposal() {
 				}
 
 			case cc, ok := <-rc.confChangeC: // receive proposal from confChangeC
-				log.Println("waiting confChangeC")
 				if !ok {
 					rc.confChangeC = nil
 				} else {
