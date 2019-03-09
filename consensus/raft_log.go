@@ -6,6 +6,7 @@ import (
 	"go.etcd.io/etcd/raft/raftpb"
 	"go.etcd.io/etcd/wal"
 	"go.etcd.io/etcd/wal/walpb"
+	"go.uber.org/zap"
 
 	"log"
 	"os"
@@ -22,6 +23,7 @@ func (rc *RaftNode) replayWAL() *wal.WAL {
 		log.Fatalf("raftexample: failed to read WAL (%v)", err)
 	}
 	rc.raftStorage = raft.NewMemoryStorage()
+	// Recover the in-memory storage from persistent snapshot, state and entries.
 	if snapshot != nil {
 		rc.raftStorage.ApplySnapshot(*snapshot)
 	}
@@ -57,8 +59,7 @@ func (rc *RaftNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 			log.Fatalf("raftexample: cannot create dir for wal (%v)", err)
 		}
 
-		// TODO: w, err := wal.Create(zap.NewExample(), rc.waldir, nil)
-		w, err := wal.Create(nil, rc.waldir, nil)
+		w, err := wal.Create(zap.NewExample(), rc.waldir, nil)
 
 		if err != nil {
 			log.Fatalf("raftexample: create wal error (%v)", err)
@@ -71,11 +72,81 @@ func (rc *RaftNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 		walsnap.Index, walsnap.Term = snapshot.Metadata.Index, snapshot.Metadata.Term
 	}
 	log.Printf("loading WAL at term %d and index %d", walsnap.Term, walsnap.Index)
-	// TODO: w, err := wal.Open(zap.NewExample(), rc.waldir, walsnap)
-	w, err := wal.Open(nil, rc.waldir, walsnap)
+	w, err := wal.Open(zap.NewExample(), rc.waldir, walsnap)
 	if err != nil {
 		log.Fatalf("raftexample: error loading wal (%v)", err)
 	}
 
 	return w
+}
+
+func (rc *RaftNode) saveSnap(snap raftpb.Snapshot) error {
+	// must save the snapshot index to the WAL before saving the
+	// snapshot to maintain the invariant that we only Open the
+	// wal at previously-saved snapshot indexes.
+	walSnap := walpb.Snapshot{
+		Index: snap.Metadata.Index,
+		Term:  snap.Metadata.Term,
+	}
+	if err := rc.wal.SaveSnapshot(walSnap); err != nil {
+		return err
+	}
+	if err := rc.snapshotter.SaveSnap(snap); err != nil {
+		return err
+	}
+	return rc.wal.ReleaseLockTo(snap.Metadata.Index)
+}
+
+func (rc *RaftNode) publishSnapshot(snapshotToSave raftpb.Snapshot) {
+	if raft.IsEmptySnap(snapshotToSave) {
+		return
+	}
+
+	log.Printf("publishing snapshot at index %d", rc.snapshotIndex)
+	defer log.Printf("finished publishing snapshot at index %d", rc.snapshotIndex)
+
+	if snapshotToSave.Metadata.Index <= rc.appliedIndex {
+		log.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d]", snapshotToSave.Metadata.Index, rc.appliedIndex)
+	}
+	rc.commitC <- nil // trigger kvstore to load snapshot
+
+	rc.confState = snapshotToSave.Metadata.ConfState
+	rc.snapshotIndex = snapshotToSave.Metadata.Index
+	rc.appliedIndex = snapshotToSave.Metadata.Index
+}
+
+var snapshotCatchUpEntriesN uint64 = 10000
+
+func (rc *RaftNode) maybeTriggerSnapshot() {
+	if rc.appliedIndex-rc.snapshotIndex <= rc.snapCount {
+		return
+	}
+
+	log.Printf("start snapshot [applied index: %d | last snapshot index: %d]", rc.appliedIndex, rc.snapshotIndex)
+	data, err := rc.getSnapshot()
+	if err != nil {
+		log.Panic(err)
+	}
+	snap, err := rc.raftStorage.CreateSnapshot(rc.appliedIndex, &rc.confState, data)
+	if err != nil {
+		panic(err)
+	}
+	if err := rc.saveSnap(snap); err != nil {
+		panic(err)
+	}
+
+	compactIndex := uint64(1)
+	if rc.appliedIndex > snapshotCatchUpEntriesN {
+		compactIndex = rc.appliedIndex - snapshotCatchUpEntriesN
+	}
+	if err := rc.raftStorage.Compact(compactIndex); err != nil {
+		panic(err)
+	}
+
+	log.Printf("compacted log at index %d", compactIndex)
+	rc.snapshotIndex = rc.appliedIndex
+}
+
+func (rc *RaftNode) getSnapshot() ([]byte, error) {
+	panic("haven't implemeted yet")
 }

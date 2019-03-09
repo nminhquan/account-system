@@ -1,9 +1,11 @@
 package mytest
 
-import "testing"
-import "database/sql"
-import "mas/db"
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+	"mas/db"
+	"testing"
+)
 
 type FakeDB struct {
 }
@@ -13,19 +15,19 @@ func createFakeDB() *FakeDB {
 	return &fakeDB
 }
 func TestDBConnection(t *testing.T) {
-	dbTest := db.CreateSQLite3DB("localhost", "root", "123456", "acb")
+	dbTest := db.CreateMySQLDB("localhost", "root", "123456", "mas_test")
 	if dbTest == nil {
 		t.Error("create DB error")
 	} else {
 		//test
-		version := RunQuery(dbTest.DB())
+		version := RunTestQuery(dbTest.DB())
 		if version == "" {
 			t.Error("run query error")
 		}
 	}
 }
 
-func RunQuery(masDB *sql.DB) string {
+func RunTestQuery(masDB *sql.DB) string {
 	results, err := masDB.Query("SELECT 1")
 
 	if err != nil {

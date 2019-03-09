@@ -2,7 +2,7 @@ package coordinator
 
 import (
 	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"log"
 	"mas/dao"
 	"mas/db"
@@ -19,13 +19,10 @@ const DEFAULT_BALANCE float64 = 0.0
 type ConsensusService interface {
 }
 
-var accDao dao.AccountDAO
-var pmDao dao.PaymentDAO
-
 type AccountService interface {
 	Start()
 	CreateAccount(string, float64) string
-	ProcessPayment(string, string, float64) string
+	CreatePayment(string, string, float64) string
 	GetAccount(string) *model.AccountInfo
 	Propose(interface{})                      //propose to RaftNode
 	ReadCommits(<-chan *string, <-chan error) //read commits from RaftNode
@@ -43,23 +40,19 @@ type AccountServiceImpl struct {
 
 func (accServ *AccountServiceImpl) Start() {
 	log.Printf("AccountService::Waiting for commits")
-	gob.Register(model.AccountInfo{})
-	gob.Register(model.PaymentInfo{})
 	accServ.ReadCommits(accServ.commitC, accServ.errorC)
 	go accServ.ReadCommits(accServ.commitC, accServ.errorC)
 }
 
 func CreateAccountService(accDb *db.AccountDB, commitC <-chan *string, proposeC chan<- string, snapshotter *snap.Snapshotter, errorC <-chan error) *AccountServiceImpl {
 	resultC := make(chan interface{})
-	accDao = dao.CreateAccountDAO(accDb)
-	pmDao = dao.CreatePaymentDAO(accDb)
 	return &AccountServiceImpl{accDb: accDb, commitC: commitC, proposeC: proposeC, snapshotter: snapshotter, resultC: resultC, errorC: errorC}
 }
 
 func (accServ *AccountServiceImpl) CreateAccount(accountNumber string, balance float64) string {
 	// currentT := time.Now().Format(time.RFC850)
 	accInfo := model.AccountInfo{
-		Id:      utils.NewSHAHash(accountNumber),
+		Id:      utils.NewSHA1Hash(accountNumber),
 		Number:  accountNumber,
 		Balance: DEFAULT_BALANCE,
 	}
@@ -81,16 +74,16 @@ func (accServ *AccountServiceImpl) CreateAccount(accountNumber string, balance f
 	return "account-id-fake"
 }
 
-func (accServ *AccountServiceImpl) ProcessPayment(fromAcc string, toAcc string, amount float64) string {
+func (accServ *AccountServiceImpl) CreatePayment(fromAcc string, toAcc string, amount float64) string {
 	// check From balance
 	fromaccInfo := accServ.GetAccount(fromAcc)
 
 	if fromaccInfo.Balance < amount {
-		log.Println("not enough balance")
+		log.Fatalln("not enough balance")
 	}
 	currentT := time.Now().Format(time.RFC850)
 	pmInfo := model.PaymentInfo{
-		Id:     utils.NewSHAHash(fromAcc, toAcc, currentT),
+		Id:     utils.NewSHA1Hash(fromAcc, toAcc, currentT),
 		From:   fromAcc,
 		To:     toAcc,
 		Amount: amount,
@@ -107,18 +100,17 @@ func (accServ *AccountServiceImpl) ProcessPayment(fromAcc string, toAcc string, 
 }
 
 func (accServ *AccountServiceImpl) GetAccount(accountNumber string) *model.AccountInfo {
-	accInfo := accDao.GetAccount(accountNumber)
+	accInfo := accServ.accDb.GetAccountInfoFromDB(accountNumber)
 	return accInfo
 }
 
-//Account service as one part inside the Resource manager will manage data of its raft group, propose to its local raft node channel
-// Change then will be redirected to the leader of the node and replicated to other nodes
 func (accServ *AccountServiceImpl) Propose(data interface{}) {
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(data); err != nil {
-		log.Fatal(err)
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalln("cannot encode: ", data)
 	}
-	accServ.proposeC <- buf.String()
+	log.Println("encoded data: ", string(encoded))
+	accServ.proposeC <- string(encoded)
 }
 
 func (accServ *AccountServiceImpl) ReadCommits(commitC <-chan *string, errorC <-chan error) {
@@ -142,12 +134,13 @@ func (accServ *AccountServiceImpl) ReadCommits(commitC <-chan *string, errorC <-
 			continue
 		}
 
-		var dbInstruction model.Instruction
-		dec := gob.NewDecoder(bytes.NewBufferString(*data))
-
+		var dbInstruction model.Instruction = model.Instruction{}
+		dec := json.NewDecoder(bytes.NewBufferString(*data))
+		log.Println("daat", *data)
 		if err := dec.Decode(&dbInstruction); err != nil {
 			log.Fatalf("raftexample: could not decode message (%v)", err)
 		}
+		log.Println("bbff", dbInstruction)
 		// TODO defer func() {
 		// 	if r := recover(); r != nil {
 		// 		log.Println("recovered:", r)
@@ -175,9 +168,11 @@ func (accServ *AccountServiceImpl) ApplyInstructionToStateMachine(ins model.Inst
 
 	switch ins.Type {
 	case "account":
+		var accDao dao.AccountDAO = dao.CreateAccountDAO(accServ.accDb)
 		accInfo := ins.Data.(model.AccountInfo)
 		accDao.CreateAccount(accInfo)
 	case "payment":
+		var pmDao dao.PaymentDAO = dao.CreatePaymentDAO(accServ.accDb)
 		pmInfo := ins.Data.(model.PaymentInfo)
 		pmDao.CreatePayment(pmInfo)
 	default:

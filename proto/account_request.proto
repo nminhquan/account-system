@@ -24,6 +24,7 @@ package proto;
 service AccountService {
   // Sends a greeting
   rpc CreateAccount (AccountRequest) returns (AccountReply) {}
+  rpc CreatePayment (PaymentRequest) returns (PaymentReply) {}
 }
 
 // The request message containing the user's name.
@@ -34,5 +35,17 @@ message AccountRequest {
 
 // The response message containing the greetings
 message AccountReply {
-  int64 account_id = 1;
+  string message = 1;
+}
+
+// The request message containing the user's name.
+message PaymentRequest {
+  string from_account_number = 1;
+  string to_account_number = 2;
+  double amount = 3;
+}
+
+// The response message containing the greetings
+message PaymentReply {
+  string message = 1;
 }

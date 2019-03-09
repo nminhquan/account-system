@@ -9,6 +9,7 @@ import (
 	"mas/coordinator"
 	"mas/db"
 	"mas/model"
+	"os"
 	"testing"
 	"time"
 )
@@ -25,35 +26,29 @@ func makeConfig() consensus.RaftClusterConfig {
 	return clusterConfig
 }
 
-func TestStartingRaftNode(t *testing.T) {
-	consensus.RaftInit(makeConfig())
-	log.Println("Raft node created")
-}
-func TestProposeCWhenPropose(t *testing.T) {
+func StartRaftNode() *consensus.RaftClusterInfo {
+	os.RemoveAll("./log/*")
 	clusterInfo := consensus.RaftInit(makeConfig())
 	log.Println("Raft node created")
 
+	return clusterInfo
+}
+
+func CreateAccountService(clusterInfo *consensus.RaftClusterInfo) coordinator.AccountService {
+	log.Println("Raft node created")
 	accountDB := db.CreateAccountDB("localhost", "root", "123456", "abc")
-	accountServ := coordinator.CreateAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, clusterInfo.SnapshotterReady)
+	accountServ := coordinator.CreateAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
 	go accountServ.ReadCommits(clusterInfo.CommitC, clusterInfo.ErrorC)
-	account := &model.AccountInfo{1, "1235", 1000.0}
+	return accountServ
+}
+func TestProposeCWhenPropose(t *testing.T) {
+	clusterInfo := StartRaftNode()
+	accountServ := CreateAccountService(clusterInfo)
+	account := &model.AccountInfo{"1", "1235", 1000.0}
 
 	//Propose
 	accountServ.Propose(account)
 	time.Sleep(20000 * time.Millisecond)
-
-	//Check commitC if message passes
-	// msg := <-clusterInfo.CommitC
-	// if msg == nil {
-	// 	t.Error("Unexpected message")
-	// } else {
-	// 	if reicAccObj := decodeMessage(msg); *reicAccObj != *account {
-	// 		t.Error("Receive message is not the same as sent")
-	// 	} else {
-	// 		log.Printf("Received from CommitC: %v", reicAccObj)
-	// 	}
-	// }
-	// log.Printf("msg: %v", msg)
 }
 
 func TestCommitCoWhenProposeSuccess(t *testing.T) {

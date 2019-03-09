@@ -1,17 +1,19 @@
 package consensus
 
 import (
+	"strings"
+
 	"go.etcd.io/etcd/etcdserver/api/snap"
 	"go.etcd.io/etcd/raft/raftpb"
-	"strings"
 )
 
 type RaftClusterConfig struct {
-	Cluster *string
-	Id      *int
-	RPCPort *string
-	Join    *bool
-	DBName  *string
+	Cluster   *string
+	Id        *int
+	RPCPort   *string
+	Join      *bool
+	DBName    *string
+	IdCluster *int
 }
 
 type RaftClusterInfo struct {
@@ -27,6 +29,6 @@ type RaftClusterInfo struct {
 func RaftInit(clusterConfig RaftClusterConfig) *RaftClusterInfo {
 	proposeC := make(chan string)
 	confChangeC := make(chan raftpb.ConfChange)
-	commitC, errorC, snapshotterReady, rc := NewRaftNode(*clusterConfig.Id, strings.Split(*clusterConfig.Cluster, ","), *clusterConfig.Join, proposeC, confChangeC)
+	commitC, errorC, snapshotterReady, rc := NewRaftNode(*clusterConfig.Id, *clusterConfig.IdCluster, strings.Split(*clusterConfig.Cluster, ","), *clusterConfig.Join, proposeC, confChangeC)
 	return &RaftClusterInfo{rc, proposeC, commitC, confChangeC, errorC, snapshotterReady}
 }

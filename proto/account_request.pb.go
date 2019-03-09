@@ -72,7 +72,7 @@ func (m *AccountRequest) GetBalance() float64 {
 
 // The response message containing the greetings
 type AccountReply struct {
-	AccountId            int64    `protobuf:"varint,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Message              string   `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -103,36 +103,139 @@ func (m *AccountReply) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_AccountReply proto.InternalMessageInfo
 
-func (m *AccountReply) GetAccountId() int64 {
+func (m *AccountReply) GetMessage() string {
 	if m != nil {
-		return m.AccountId
+		return m.Message
+	}
+	return ""
+}
+
+// The request message containing the user's name.
+type PaymentRequest struct {
+	FromAccountNumber    string   `protobuf:"bytes,1,opt,name=from_account_number,json=fromAccountNumber,proto3" json:"from_account_number,omitempty"`
+	ToAccountNumber      string   `protobuf:"bytes,2,opt,name=to_account_number,json=toAccountNumber,proto3" json:"to_account_number,omitempty"`
+	Amount               float64  `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PaymentRequest) Reset()         { *m = PaymentRequest{} }
+func (m *PaymentRequest) String() string { return proto.CompactTextString(m) }
+func (*PaymentRequest) ProtoMessage()    {}
+func (*PaymentRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_32ec3829ba78adf1, []int{2}
+}
+
+func (m *PaymentRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PaymentRequest.Unmarshal(m, b)
+}
+func (m *PaymentRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PaymentRequest.Marshal(b, m, deterministic)
+}
+func (m *PaymentRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PaymentRequest.Merge(m, src)
+}
+func (m *PaymentRequest) XXX_Size() int {
+	return xxx_messageInfo_PaymentRequest.Size(m)
+}
+func (m *PaymentRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PaymentRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PaymentRequest proto.InternalMessageInfo
+
+func (m *PaymentRequest) GetFromAccountNumber() string {
+	if m != nil {
+		return m.FromAccountNumber
+	}
+	return ""
+}
+
+func (m *PaymentRequest) GetToAccountNumber() string {
+	if m != nil {
+		return m.ToAccountNumber
+	}
+	return ""
+}
+
+func (m *PaymentRequest) GetAmount() float64 {
+	if m != nil {
+		return m.Amount
 	}
 	return 0
+}
+
+// The response message containing the greetings
+type PaymentReply struct {
+	Message              string   `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PaymentReply) Reset()         { *m = PaymentReply{} }
+func (m *PaymentReply) String() string { return proto.CompactTextString(m) }
+func (*PaymentReply) ProtoMessage()    {}
+func (*PaymentReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_32ec3829ba78adf1, []int{3}
+}
+
+func (m *PaymentReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PaymentReply.Unmarshal(m, b)
+}
+func (m *PaymentReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PaymentReply.Marshal(b, m, deterministic)
+}
+func (m *PaymentReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PaymentReply.Merge(m, src)
+}
+func (m *PaymentReply) XXX_Size() int {
+	return xxx_messageInfo_PaymentReply.Size(m)
+}
+func (m *PaymentReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_PaymentReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PaymentReply proto.InternalMessageInfo
+
+func (m *PaymentReply) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
 }
 
 func init() {
 	proto.RegisterType((*AccountRequest)(nil), "proto.AccountRequest")
 	proto.RegisterType((*AccountReply)(nil), "proto.AccountReply")
+	proto.RegisterType((*PaymentRequest)(nil), "proto.PaymentRequest")
+	proto.RegisterType((*PaymentReply)(nil), "proto.PaymentReply")
 }
 
 func init() { proto.RegisterFile("account_request.proto", fileDescriptor_32ec3829ba78adf1) }
 
 var fileDescriptor_32ec3829ba78adf1 = []byte{
-	// 220 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4d, 0x4c, 0x4e, 0xce,
-	0x2f, 0xcd, 0x2b, 0x89, 0x2f, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0xd1, 0x2b, 0x28, 0xca, 0x2f,
-	0xc9, 0x17, 0x62, 0x05, 0x53, 0x4a, 0x81, 0x5c, 0x7c, 0x8e, 0x10, 0xf9, 0x20, 0x88, 0xb4, 0x90,
-	0x2a, 0x17, 0x1f, 0x4c, 0x47, 0x5e, 0x69, 0x6e, 0x52, 0x6a, 0x91, 0x04, 0xa3, 0x02, 0xa3, 0x06,
-	0x67, 0x10, 0x2f, 0x54, 0xd4, 0x0f, 0x2c, 0x28, 0x24, 0xc1, 0xc5, 0x9e, 0x94, 0x98, 0x93, 0x98,
-	0x97, 0x9c, 0x2a, 0xc1, 0xa4, 0xc0, 0xa8, 0xc1, 0x18, 0x04, 0xe3, 0x2a, 0xe9, 0x72, 0xf1, 0xc0,
-	0x8d, 0x2c, 0xc8, 0xa9, 0x14, 0x92, 0xe5, 0xe2, 0x82, 0x19, 0x98, 0x99, 0x02, 0x36, 0x8c, 0x39,
-	0x88, 0x13, 0x2a, 0xe2, 0x99, 0x62, 0xe4, 0x0f, 0x77, 0x41, 0x70, 0x6a, 0x51, 0x59, 0x66, 0x72,
-	0xaa, 0x90, 0x2d, 0x17, 0xaf, 0x73, 0x51, 0x6a, 0x62, 0x49, 0x2a, 0x54, 0x5c, 0x48, 0x14, 0xe2,
-	0x66, 0x3d, 0x54, 0x97, 0x4a, 0x09, 0xa3, 0x0b, 0x17, 0xe4, 0x54, 0x2a, 0x31, 0x38, 0x19, 0x70,
-	0x49, 0x67, 0xe6, 0xeb, 0xa5, 0x17, 0x15, 0x24, 0xeb, 0xa5, 0x56, 0x24, 0xe6, 0x16, 0xe4, 0xa4,
-	0x16, 0xeb, 0x65, 0xa4, 0xe6, 0xe4, 0xe4, 0x97, 0xe7, 0x17, 0xe5, 0xa4, 0x38, 0xf1, 0x7b, 0x80,
-	0xd8, 0xe1, 0x20, 0x76, 0x00, 0x48, 0x7b, 0x00, 0x63, 0x12, 0x1b, 0xd8, 0x1c, 0x63, 0x40, 0x00,
-	0x00, 0x00, 0xff, 0xff, 0x4a, 0x0e, 0xb0, 0x3b, 0x2b, 0x01, 0x00, 0x00,
+	// 291 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x90, 0xc1, 0x4b, 0xf3, 0x40,
+	0x10, 0xc5, 0xbb, 0xfd, 0xf8, 0x2a, 0x0e, 0x36, 0xa5, 0x29, 0x95, 0xa0, 0x97, 0x12, 0x10, 0x82,
+	0x87, 0x45, 0xf4, 0xec, 0xa1, 0xf5, 0xe2, 0x49, 0x62, 0x3c, 0x78, 0x2c, 0x9b, 0x38, 0xd6, 0xc2,
+	0x6e, 0x36, 0x6e, 0x36, 0x6a, 0xee, 0x9e, 0xfd, 0x9b, 0x65, 0x93, 0xcd, 0xd6, 0x14, 0xf1, 0x94,
+	0x9d, 0x37, 0xef, 0x4d, 0x7e, 0x3c, 0x98, 0xb3, 0x2c, 0x93, 0x55, 0xae, 0xd7, 0x0a, 0x5f, 0x2b,
+	0x2c, 0x35, 0x2d, 0x94, 0xd4, 0xd2, 0xff, 0xdf, 0x7c, 0xc2, 0x7b, 0xf0, 0x96, 0xed, 0x3e, 0x69,
+	0xd7, 0xfe, 0x19, 0x78, 0x5d, 0x22, 0xaf, 0x44, 0x8a, 0x2a, 0x20, 0x0b, 0x12, 0x1d, 0x26, 0x63,
+	0xab, 0xde, 0x35, 0xa2, 0x1f, 0xc0, 0x41, 0xca, 0x38, 0xcb, 0x33, 0x0c, 0x86, 0x0b, 0x12, 0x91,
+	0xa4, 0x1b, 0xc3, 0x08, 0x8e, 0xdc, 0xc9, 0x82, 0xd7, 0xc6, 0x29, 0xb0, 0x2c, 0xd9, 0x06, 0xed,
+	0xa5, 0x6e, 0x0c, 0x3f, 0x09, 0x78, 0x31, 0xab, 0x05, 0xee, 0xfe, 0x4e, 0x61, 0xf6, 0xac, 0xa4,
+	0x58, 0xff, 0x8a, 0x30, 0x35, 0xab, 0x65, 0x0f, 0xe3, 0x1c, 0xa6, 0x5a, 0xee, 0xbb, 0x87, 0x8d,
+	0x7b, 0xa2, 0x65, 0xdf, 0x7b, 0x0c, 0x23, 0x26, 0xcc, 0x1c, 0xfc, 0x6b, 0x88, 0xed, 0x64, 0x80,
+	0x1d, 0xc5, 0x9f, 0xc0, 0x97, 0x5f, 0xc4, 0xd5, 0xf5, 0x80, 0xea, 0x6d, 0x9b, 0xa1, 0x7f, 0x0d,
+	0xe3, 0x1b, 0x85, 0x4c, 0xa3, 0xd5, 0xfd, 0x79, 0x5b, 0x30, 0xed, 0xd7, 0x7a, 0x32, 0xdb, 0x97,
+	0x0b, 0x5e, 0x87, 0x83, 0x5d, 0xdc, 0x12, 0xb8, 0x78, 0xbf, 0x17, 0x17, 0xff, 0x09, 0x1a, 0x0e,
+	0x56, 0x17, 0x70, 0xba, 0x95, 0x74, 0xa3, 0x8a, 0x8c, 0xe2, 0x07, 0x13, 0x05, 0xc7, 0x92, 0xbe,
+	0x20, 0xe7, 0xf2, 0x5d, 0x2a, 0xfe, 0xb4, 0x9a, 0xdc, 0x9a, 0xf7, 0xa3, 0x79, 0xc7, 0x26, 0x1e,
+	0x93, 0x74, 0xd4, 0xdc, 0xb9, 0xfa, 0x0e, 0x00, 0x00, 0xff, 0xff, 0x79, 0x48, 0x60, 0x03, 0x17,
+	0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -149,6 +252,7 @@ const _ = grpc.SupportPackageIsVersion4
 type AccountServiceClient interface {
 	// Sends a greeting
 	CreateAccount(ctx context.Context, in *AccountRequest, opts ...grpc.CallOption) (*AccountReply, error)
+	CreatePayment(ctx context.Context, in *PaymentRequest, opts ...grpc.CallOption) (*PaymentReply, error)
 }
 
 type accountServiceClient struct {
@@ -168,10 +272,20 @@ func (c *accountServiceClient) CreateAccount(ctx context.Context, in *AccountReq
 	return out, nil
 }
 
+func (c *accountServiceClient) CreatePayment(ctx context.Context, in *PaymentRequest, opts ...grpc.CallOption) (*PaymentReply, error) {
+	out := new(PaymentReply)
+	err := c.cc.Invoke(ctx, "/proto.AccountService/CreatePayment", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AccountServiceServer is the server API for AccountService service.
 type AccountServiceServer interface {
 	// Sends a greeting
 	CreateAccount(context.Context, *AccountRequest) (*AccountReply, error)
+	CreatePayment(context.Context, *PaymentRequest) (*PaymentReply, error)
 }
 
 func RegisterAccountServiceServer(s *grpc.Server, srv AccountServiceServer) {
@@ -196,6 +310,24 @@ func _AccountService_CreateAccount_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AccountService_CreatePayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccountServiceServer).CreatePayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.AccountService/CreatePayment",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccountServiceServer).CreatePayment(ctx, req.(*PaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _AccountService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.AccountService",
 	HandlerType: (*AccountServiceServer)(nil),
@@ -203,6 +335,10 @@ var _AccountService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateAccount",
 			Handler:    _AccountService_CreateAccount_Handler,
+		},
+		{
+			MethodName: "CreatePayment",
+			Handler:    _AccountService_CreatePayment_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
