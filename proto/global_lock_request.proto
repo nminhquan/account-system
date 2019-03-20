@@ -21,19 +21,18 @@ option java_outer_classname = "HelloWorldProto";
 package proto;
 
 // The greeting service definition.
-service TransactionService {
+service LockService {
   // Sends a greeting
-  rpc ProcessPhase1 (TXRequest) returns (TXReply) {}
-  rpc ProcessPhase2Commit (TXRequest) returns (TXReply) {}
-  rpc ProcessPhase2Rollback (TXRequest) returns (TXReply) {}
+  rpc AcquireLock (LockRequest) returns (LockReply) {}
+  rpc ReleaseLock (LockRequest) returns (LockReply) {}
 }
 
 // The request message containing the user's name.
-message TXRequest {
-  bytes data = 1;
+message LockRequest {
+  string lock_id = 1;
 }
 
 // The response message containing the greetings
-message TXReply {
+message LockReply {
   string message = 1;
 }

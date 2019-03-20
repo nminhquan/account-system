@@ -4,11 +4,14 @@ import (
 	"flag"
 	"log"
 	"mas/consensus"
-	"mas/coordinator"
 	"mas/db"
+	"mas/model"
+	rm "mas/resource_manager"
+	"mas/transaction"
 )
 
 func makeConfig() consensus.RaftClusterConfig {
+	mode := flag.String("mode", "tc", "servermode/resourcemanagermode")
 	cluster := flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
 	clusterid := flag.Int("clusterid", 1, "node ID")
 	id := flag.Int("id", 1, "node ID")
@@ -17,7 +20,7 @@ func makeConfig() consensus.RaftClusterConfig {
 	dbName := flag.String("db", "mas", "db Name")
 	flag.Parse()
 
-	clusterConfig := consensus.RaftClusterConfig{cluster, id, rpcPort, join, dbName, clusterid}
+	clusterConfig := consensus.RaftClusterConfig{cluster, id, rpcPort, join, dbName, clusterid, mode}
 	return clusterConfig
 }
 
@@ -25,26 +28,35 @@ func makeConfig() consensus.RaftClusterConfig {
 // RPC port of RM will be called from Coordinator to write data to the raftgroup
 func main() {
 	clusterConfig := makeConfig()
-	clusterInfo := consensus.RaftInit(clusterConfig)
-	log.Println("Raft node createddddddd=================================")
+	if *clusterConfig.Mode == "tc" {
+		log.Println("Running server mode")
+		go transaction.CreateTCServer(model.TC_SERVICE_HOST).Start()
+		go transaction.CreateLockServer(model.LOCK_SERVICE_HOST).Start()
+		stopC := make(chan string)
+		stopC <- "block"
+	} else {
+		clusterInfo := consensus.RaftInit(clusterConfig)
+		log.Println("Raft node createddddddd=================================")
 
-	accountDB := db.CreateAccountDB("localhost", "root", "123456", *clusterConfig.DBName)
-	// TODO Handle DB connection clean up
-	startServer(accountDB, clusterInfo, clusterConfig.RPCPort)
-	log.Println("Raft node SLEEPING=================================")
+		accountDB := db.CreateAccountDB("localhost", "root", "123456", *clusterConfig.DBName)
 
-	stopC := make(chan string)
+		var accountService rm.AccountService = rm.NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
+		startServer(accountService, clusterConfig.RPCPort)
+		log.Println("Raft node SLEEPING=================================")
 
-	stopC <- "block"
+		stopC := make(chan string)
+		stopC <- "block"
 
-	clusterInfo.Node.Stop()
-	log.Println("Raft node STOPPED=================================")
+		clusterInfo.Node.Stop()
+		log.Println("Raft node STOPPED=================================")
+	}
+
 }
 
-func startServer(db *db.AccountDB, clusterInfo *consensus.RaftClusterInfo, rpcPort *string) {
-	rpcServer := coordinator.CreateRPCServer(db, clusterInfo, *rpcPort)
+func startServer(service rm.AccountService, rpcPort *string) {
+	resourceManager := rm.CreateResourceManager(service, *rpcPort)
 	go func() {
 		log.Printf("Starting RPC Server: %v \n", *rpcPort)
-		rpcServer.Start()
+		resourceManager.StartRPCServer()
 	}()
 }

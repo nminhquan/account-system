@@ -23,87 +23,79 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // The request message containing the user's name.
-type DepositRequest struct {
-	UserId               string   `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Amount               float32  `protobuf:"fixed32,2,opt,name=amount,proto3" json:"amount,omitempty"`
+type TXRequest struct {
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DepositRequest) Reset()         { *m = DepositRequest{} }
-func (m *DepositRequest) String() string { return proto.CompactTextString(m) }
-func (*DepositRequest) ProtoMessage()    {}
-func (*DepositRequest) Descriptor() ([]byte, []int) {
+func (m *TXRequest) Reset()         { *m = TXRequest{} }
+func (m *TXRequest) String() string { return proto.CompactTextString(m) }
+func (*TXRequest) ProtoMessage()    {}
+func (*TXRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e5080b223cb4cee2, []int{0}
 }
 
-func (m *DepositRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DepositRequest.Unmarshal(m, b)
+func (m *TXRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TXRequest.Unmarshal(m, b)
 }
-func (m *DepositRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DepositRequest.Marshal(b, m, deterministic)
+func (m *TXRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TXRequest.Marshal(b, m, deterministic)
 }
-func (m *DepositRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DepositRequest.Merge(m, src)
+func (m *TXRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TXRequest.Merge(m, src)
 }
-func (m *DepositRequest) XXX_Size() int {
-	return xxx_messageInfo_DepositRequest.Size(m)
+func (m *TXRequest) XXX_Size() int {
+	return xxx_messageInfo_TXRequest.Size(m)
 }
-func (m *DepositRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_DepositRequest.DiscardUnknown(m)
+func (m *TXRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TXRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_DepositRequest proto.InternalMessageInfo
+var xxx_messageInfo_TXRequest proto.InternalMessageInfo
 
-func (m *DepositRequest) GetUserId() string {
+func (m *TXRequest) GetData() []byte {
 	if m != nil {
-		return m.UserId
+		return m.Data
 	}
-	return ""
-}
-
-func (m *DepositRequest) GetAmount() float32 {
-	if m != nil {
-		return m.Amount
-	}
-	return 0
+	return nil
 }
 
 // The response message containing the greetings
-type DepositReply struct {
+type TXReply struct {
 	Message              string   `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DepositReply) Reset()         { *m = DepositReply{} }
-func (m *DepositReply) String() string { return proto.CompactTextString(m) }
-func (*DepositReply) ProtoMessage()    {}
-func (*DepositReply) Descriptor() ([]byte, []int) {
+func (m *TXReply) Reset()         { *m = TXReply{} }
+func (m *TXReply) String() string { return proto.CompactTextString(m) }
+func (*TXReply) ProtoMessage()    {}
+func (*TXReply) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e5080b223cb4cee2, []int{1}
 }
 
-func (m *DepositReply) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DepositReply.Unmarshal(m, b)
+func (m *TXReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TXReply.Unmarshal(m, b)
 }
-func (m *DepositReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DepositReply.Marshal(b, m, deterministic)
+func (m *TXReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TXReply.Marshal(b, m, deterministic)
 }
-func (m *DepositReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DepositReply.Merge(m, src)
+func (m *TXReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TXReply.Merge(m, src)
 }
-func (m *DepositReply) XXX_Size() int {
-	return xxx_messageInfo_DepositReply.Size(m)
+func (m *TXReply) XXX_Size() int {
+	return xxx_messageInfo_TXReply.Size(m)
 }
-func (m *DepositReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_DepositReply.DiscardUnknown(m)
+func (m *TXReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_TXReply.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_DepositReply proto.InternalMessageInfo
+var xxx_messageInfo_TXReply proto.InternalMessageInfo
 
-func (m *DepositReply) GetMessage() string {
+func (m *TXReply) GetMessage() string {
 	if m != nil {
 		return m.Message
 	}
@@ -111,28 +103,29 @@ func (m *DepositReply) GetMessage() string {
 }
 
 func init() {
-	proto.RegisterType((*DepositRequest)(nil), "proto.DepositRequest")
-	proto.RegisterType((*DepositReply)(nil), "proto.DepositReply")
+	proto.RegisterType((*TXRequest)(nil), "proto.TXRequest")
+	proto.RegisterType((*TXReply)(nil), "proto.TXReply")
 }
 
 func init() { proto.RegisterFile("txn_request.proto", fileDescriptor_e5080b223cb4cee2) }
 
 var fileDescriptor_e5080b223cb4cee2 = []byte{
-	// 213 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x2c, 0xa9, 0xc8, 0x8b,
-	0x2f, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05,
-	0x53, 0x4a, 0x8e, 0x5c, 0x7c, 0x2e, 0xa9, 0x05, 0xf9, 0xc5, 0x99, 0x25, 0x41, 0x10, 0x69, 0x21,
-	0x71, 0x2e, 0xf6, 0xd2, 0xe2, 0xd4, 0xa2, 0xf8, 0xcc, 0x14, 0x09, 0x46, 0x05, 0x46, 0x0d, 0xce,
-	0x20, 0x36, 0x10, 0xd7, 0x33, 0x45, 0x48, 0x8c, 0x8b, 0x2d, 0x31, 0x37, 0xbf, 0x34, 0xaf, 0x44,
-	0x82, 0x49, 0x81, 0x51, 0x83, 0x29, 0x08, 0xca, 0x53, 0xd2, 0xe0, 0xe2, 0x81, 0x1b, 0x51, 0x90,
-	0x53, 0x29, 0x24, 0xc1, 0xc5, 0x9e, 0x9b, 0x5a, 0x5c, 0x9c, 0x98, 0x9e, 0x0a, 0x35, 0x00, 0xc6,
-	0x35, 0xf2, 0xe1, 0xe2, 0xf1, 0xcd, 0xcf, 0x4b, 0xad, 0x0c, 0x4e, 0x2d, 0x2a, 0xcb, 0x4c, 0x4e,
-	0x15, 0xb2, 0x81, 0xeb, 0x04, 0x0b, 0x0b, 0x89, 0x42, 0xdc, 0xa6, 0x87, 0xea, 0x22, 0x29, 0x61,
-	0x74, 0xe1, 0x82, 0x9c, 0x4a, 0x25, 0x06, 0x27, 0x03, 0x2e, 0xe9, 0xcc, 0x7c, 0xbd, 0xf4, 0xa2,
-	0x82, 0x64, 0xbd, 0xd4, 0x8a, 0xc4, 0xdc, 0x82, 0x9c, 0xd4, 0x62, 0xbd, 0x8c, 0xd4, 0x9c, 0x9c,
-	0xfc, 0xf2, 0xfc, 0xa2, 0x9c, 0x14, 0x27, 0x7e, 0x0f, 0x10, 0x3b, 0x1c, 0xc4, 0x0e, 0x00, 0x69,
-	0x0f, 0x60, 0x4c, 0x62, 0x03, 0x9b, 0x63, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x6b, 0xdc, 0xec,
-	0xe3, 0x0f, 0x01, 0x00, 0x00,
+	// 233 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x8d, 0x3d, 0x4b, 0x03, 0x41,
+	0x10, 0x86, 0x3d, 0x50, 0x43, 0x06, 0x3f, 0x57, 0x84, 0xa0, 0x85, 0x72, 0x36, 0x56, 0x8b, 0x26,
+	0x95, 0xd8, 0xc5, 0xc6, 0xf2, 0x38, 0x03, 0xda, 0xc9, 0x64, 0x33, 0x24, 0x87, 0x73, 0x37, 0xeb,
+	0xce, 0xaa, 0xc9, 0xcf, 0xf3, 0x9f, 0xc9, 0x6d, 0x50, 0x62, 0x77, 0xd5, 0x3e, 0x3b, 0xf3, 0x3e,
+	0xf3, 0xc2, 0x71, 0x5c, 0x36, 0xaf, 0x81, 0xde, 0x3f, 0x48, 0xa3, 0xf5, 0x41, 0xa2, 0x98, 0x9d,
+	0xf4, 0xe4, 0x17, 0xd0, 0x9f, 0xbc, 0x94, 0xeb, 0x8d, 0x31, 0xb0, 0x3d, 0xc3, 0x88, 0x83, 0xec,
+	0x32, 0xbb, 0xde, 0x2b, 0x13, 0xe7, 0x57, 0xd0, 0x6b, 0x03, 0x9e, 0x57, 0x66, 0x00, 0xbd, 0x9a,
+	0x54, 0x71, 0x4e, 0x29, 0xd1, 0x2f, 0x7f, 0xbf, 0xc3, 0xef, 0x0c, 0xcc, 0x24, 0x60, 0xa3, 0xe8,
+	0x62, 0x25, 0xcd, 0x13, 0x85, 0xcf, 0xca, 0x91, 0x19, 0xc1, 0x7e, 0x11, 0xc4, 0x91, 0x6a, 0xb1,
+	0x40, 0xa5, 0x5b, 0x73, 0xb4, 0x2e, 0xb7, 0x7f, 0x95, 0x67, 0x07, 0x1b, 0x13, 0xcf, 0xab, 0x7c,
+	0xcb, 0xdc, 0xc1, 0xc9, 0xa6, 0x34, 0x7c, 0x90, 0xba, 0xae, 0x62, 0x27, 0xf5, 0x1e, 0x4e, 0xff,
+	0xa9, 0xa5, 0x30, 0x4f, 0xd1, 0xbd, 0x75, 0x91, 0xc7, 0x37, 0x70, 0x5e, 0x89, 0x9d, 0x07, 0xef,
+	0x2c, 0x2d, 0xb1, 0xf6, 0x4c, 0x6a, 0x17, 0xc4, 0x2c, 0x5f, 0x12, 0x78, 0x36, 0x3e, 0x7c, 0x6c,
+	0xf9, 0xb9, 0xe5, 0xa2, 0x35, 0x8b, 0x6c, 0xba, 0x9b, 0x4e, 0x8c, 0x7e, 0x02, 0x00, 0x00, 0xff,
+	0xff, 0x64, 0x4c, 0x6a, 0xad, 0x5e, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -143,66 +136,132 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// MoneyServiceClient is the client API for MoneyService service.
+// TransactionServiceClient is the client API for TransactionService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type MoneyServiceClient interface {
+type TransactionServiceClient interface {
 	// Sends a greeting
-	DepositMoney(ctx context.Context, in *DepositRequest, opts ...grpc.CallOption) (*DepositReply, error)
+	ProcessPhase1(ctx context.Context, in *TXRequest, opts ...grpc.CallOption) (*TXReply, error)
+	ProcessPhase2Commit(ctx context.Context, in *TXRequest, opts ...grpc.CallOption) (*TXReply, error)
+	ProcessPhase2Rollback(ctx context.Context, in *TXRequest, opts ...grpc.CallOption) (*TXReply, error)
 }
 
-type moneyServiceClient struct {
+type transactionServiceClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewMoneyServiceClient(cc *grpc.ClientConn) MoneyServiceClient {
-	return &moneyServiceClient{cc}
+func NewTransactionServiceClient(cc *grpc.ClientConn) TransactionServiceClient {
+	return &transactionServiceClient{cc}
 }
 
-func (c *moneyServiceClient) DepositMoney(ctx context.Context, in *DepositRequest, opts ...grpc.CallOption) (*DepositReply, error) {
-	out := new(DepositReply)
-	err := c.cc.Invoke(ctx, "/proto.MoneyService/DepositMoney", in, out, opts...)
+func (c *transactionServiceClient) ProcessPhase1(ctx context.Context, in *TXRequest, opts ...grpc.CallOption) (*TXReply, error) {
+	out := new(TXReply)
+	err := c.cc.Invoke(ctx, "/proto.TransactionService/ProcessPhase1", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// MoneyServiceServer is the server API for MoneyService service.
-type MoneyServiceServer interface {
+func (c *transactionServiceClient) ProcessPhase2Commit(ctx context.Context, in *TXRequest, opts ...grpc.CallOption) (*TXReply, error) {
+	out := new(TXReply)
+	err := c.cc.Invoke(ctx, "/proto.TransactionService/ProcessPhase2Commit", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *transactionServiceClient) ProcessPhase2Rollback(ctx context.Context, in *TXRequest, opts ...grpc.CallOption) (*TXReply, error) {
+	out := new(TXReply)
+	err := c.cc.Invoke(ctx, "/proto.TransactionService/ProcessPhase2Rollback", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TransactionServiceServer is the server API for TransactionService service.
+type TransactionServiceServer interface {
 	// Sends a greeting
-	DepositMoney(context.Context, *DepositRequest) (*DepositReply, error)
+	ProcessPhase1(context.Context, *TXRequest) (*TXReply, error)
+	ProcessPhase2Commit(context.Context, *TXRequest) (*TXReply, error)
+	ProcessPhase2Rollback(context.Context, *TXRequest) (*TXReply, error)
 }
 
-func RegisterMoneyServiceServer(s *grpc.Server, srv MoneyServiceServer) {
-	s.RegisterService(&_MoneyService_serviceDesc, srv)
+func RegisterTransactionServiceServer(s *grpc.Server, srv TransactionServiceServer) {
+	s.RegisterService(&_TransactionService_serviceDesc, srv)
 }
 
-func _MoneyService_DepositMoney_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DepositRequest)
+func _TransactionService_ProcessPhase1_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TXRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MoneyServiceServer).DepositMoney(ctx, in)
+		return srv.(TransactionServiceServer).ProcessPhase1(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.MoneyService/DepositMoney",
+		FullMethod: "/proto.TransactionService/ProcessPhase1",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MoneyServiceServer).DepositMoney(ctx, req.(*DepositRequest))
+		return srv.(TransactionServiceServer).ProcessPhase1(ctx, req.(*TXRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _MoneyService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.MoneyService",
-	HandlerType: (*MoneyServiceServer)(nil),
+func _TransactionService_ProcessPhase2Commit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TXRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServiceServer).ProcessPhase2Commit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.TransactionService/ProcessPhase2Commit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServiceServer).ProcessPhase2Commit(ctx, req.(*TXRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TransactionService_ProcessPhase2Rollback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TXRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionServiceServer).ProcessPhase2Rollback(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.TransactionService/ProcessPhase2Rollback",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionServiceServer).ProcessPhase2Rollback(ctx, req.(*TXRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _TransactionService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.TransactionService",
+	HandlerType: (*TransactionServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "DepositMoney",
-			Handler:    _MoneyService_DepositMoney_Handler,
+			MethodName: "ProcessPhase1",
+			Handler:    _TransactionService_ProcessPhase1_Handler,
+		},
+		{
+			MethodName: "ProcessPhase2Commit",
+			Handler:    _TransactionService_ProcessPhase2Commit_Handler,
+		},
+		{
+			MethodName: "ProcessPhase2Rollback",
+			Handler:    _TransactionService_ProcessPhase2Rollback_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

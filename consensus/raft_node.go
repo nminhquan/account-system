@@ -156,9 +156,8 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 				// ignore empty messages
 				break
 			}
-			log.Printf("publishEntries: Write entries")
-			s := string(ents[i].Data)
 
+			s := string(ents[i].Data)
 			select {
 			case rc.commitC <- &s:
 				log.Printf("publishEntries: Sent data to commitC")
@@ -215,7 +214,6 @@ func (rc *RaftNode) sendProposal() {
 					rc.proposeC = nil
 				} else {
 					// blocks until accepted by raft state machine
-					log.Printf("Sending nodes proposal: %v", prop)
 					err := rc.node.Propose(context.TODO(), []byte(prop))
 					if err != nil {
 						log.Fatalf("error: %v\n", err)

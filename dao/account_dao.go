@@ -1,37 +1,46 @@
 package dao
 
 import (
+	"log"
 	. "mas/db"
-	. "mas/model"
+	"mas/model"
 )
 
 type AccountDAO interface {
-	GetAccount(accountNumber string) *AccountInfo
-	CreateAccount(accInfo AccountInfo) int64
-	DeductMoney(accountNumber string, amount float64) bool
-	DepositMoney(accountNumber string, amount float64) bool
+	GetAccount(accountNumber string) *model.AccountInfo
+	CreateAccount(accInfo model.AccountInfo) bool
+	UpdateAccountBalance(accountNumber string, amount float64) bool
 }
 
 type AccountDAOImpl struct {
 	db *AccountDB
 }
 
-func CreateAccountDAO(db *AccountDB) *AccountDAOImpl {
+func NewAccountDAO(db *AccountDB) *AccountDAOImpl {
 	return &AccountDAOImpl{db}
 }
 
-func (accDao *AccountDAOImpl) GetAccount(accountNumber string) *AccountInfo {
+func (accDao *AccountDAOImpl) GetAccount(accountNumber string) *model.AccountInfo {
 	return accDao.db.GetAccountInfoFromDB(accountNumber)
 }
 
-func (accDao *AccountDAOImpl) CreateAccount(accInfo AccountInfo) int64 {
-	return accDao.db.InsertAccountInfoToDB(accInfo)
+func (accDao *AccountDAOImpl) CreateAccount(accInfo model.AccountInfo) bool {
+	_, err := accDao.db.InsertAccountInfoToDB(accInfo)
+	if err != nil {
+		log.Println("[AccountDAO] CreateAccount Error: ", err)
+		return false
+	}
+
+	return true
 }
 
-func (accDao *AccountDAOImpl) DeductMoney(accountNumber string, amount float64) bool {
-	panic("not yet impl")
-}
+func (accDao *AccountDAOImpl) UpdateAccountBalance(accountNumber string, amount float64) bool {
+	db := accDao.db.DB()
 
-func (accDao *AccountDAOImpl) DepositMoney(accountNumber string, amount float64) bool {
-	panic("not yet impl")
+	_, err := db.Query("UPDATE account SET account_balance = account_balance + ? WHERE account_number = ?", amount, accountNumber)
+	if err != nil {
+		log.Println("[AccountDAO] UpdateAccountBalance Error: ", err)
+		return false
+	}
+	return true
 }

@@ -1,0 +1,3 @@
+# Start 3 Single-node cluster
+
+tc-1: go run main.go --mode tc

@@ -8,12 +8,9 @@ import (
 )
 
 type FakeDB struct {
+	*db.MasDB
 }
 
-func createFakeDB() *FakeDB {
-	fakeDB := FakeDB{}
-	return &fakeDB
-}
 func TestDBConnection(t *testing.T) {
 	dbTest := db.CreateMySQLDB("localhost", "root", "123456", "mas_test")
 	if dbTest == nil {

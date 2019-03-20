@@ -40,7 +40,7 @@ func TestAccountServiceImpl_CreateAccount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			accServ := coordinator.CreateAccountService(tt.fields.accDb, nil, nil, nil, nil)
+			accServ := coordinator.NewAccountService(tt.fields.accDb, nil, nil, nil, nil)
 			if got := accServ.CreateAccount(tt.args.accountNumber, tt.args.balance); got != tt.want {
 				t.Errorf("AccountServiceImpl.CreateAccount() = %v, want %v", got, tt.want)
 			}

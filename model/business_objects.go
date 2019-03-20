@@ -1,13 +1,15 @@
 package model
 
 type Instruction struct {
-	Type string //Can be create account, create payment, update account, SQL query
+	Type string // Createaccount/createpayment
 	Data interface{}
 }
 
-type SQLTransaction struct {
-	Query  string
-	Params interface{}
+type TCTransactionEntry struct {
+	txn_id        string
+	ts            int
+	state         string
+	parent_txn_id string
 }
 
 type AccountInfo struct {

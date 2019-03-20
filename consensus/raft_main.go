@@ -14,6 +14,7 @@ type RaftClusterConfig struct {
 	Join      *bool
 	DBName    *string
 	IdCluster *int
+	Mode      *string
 }
 
 type RaftClusterInfo struct {

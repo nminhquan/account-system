@@ -17,7 +17,7 @@ func CreateAccountDB(host string, userName string, password string, dbName strin
 	return &AccountDB{masDB}
 }
 
-func (accDB *AccountDB) InsertAccountInfoToDB(accInfo AccountInfo) int64 {
+func (accDB *AccountDB) InsertAccountInfoToDB(accInfo AccountInfo) (bool, error) {
 	log.Printf("AccountDB::InsertAccountInfoToDB")
 	db := accDB.DB()
 
@@ -25,11 +25,12 @@ func (accDB *AccountDB) InsertAccountInfoToDB(accInfo AccountInfo) int64 {
 	rows, err := db.Exec("insert into account(account_id, account_number, account_balance) values (?, ?, ?) ", accInfo.Id, accInfo.Number, accInfo.Balance)
 	if err != nil {
 		log.Printf(fmt.Sprintf("Query: %v", err))
+		return false, err
 	} else {
 		accId, err = rows.LastInsertId()
+		log.Printf("AccountDB::InsertAccountInfoToDB success return ID = %v", accId)
+		return true, err
 	}
-	log.Printf("AccountDB::InsertAccountInfoToDB success return ID = %v", accId)
-	return accId
 }
 
 func (accDB *AccountDB) InsertTransactionToDB(pmInfo PaymentInfo) int64 {

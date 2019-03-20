@@ -13,7 +13,7 @@ type PaymentDAOImpl struct {
 	db *AccountDB
 }
 
-func CreatePaymentDAO(db *AccountDB) *PaymentDAOImpl {
+func NewPaymentDAO(db *AccountDB) *PaymentDAOImpl {
 	return &PaymentDAOImpl{db}
 }
 
