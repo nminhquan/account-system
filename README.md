@@ -2,27 +2,29 @@
 
 # Mini Account System
 Some abbreviations used in this document:
-```
-TM: Transaction Manager
-TC: Transaction Coordinator
-GLS: GlobalLock Service
-RM: Resource Manager
-```
+
+- TM: Transaction Manager
+- TC: Transaction Coordinator
+- GLS: GlobalLock Service
+- RM: Resource Manager
+
 # 1. Distributed systems
 Given the distributed system, the problem is to make sure the ACID (Atomicity, Consistency, Isolation, Durability) among the cluster nodes.
 ## 1.1 Raft consensus
 This project uses etcd/raft library to implemet the Consistency between nodes [Link](https://godoc.org/github.com/coreos/etcd/raft)
 
+Raft help to replicate data to other nodes.
 ## 1.2 2-Phase Commit
 Given the data is sharded between nodes, the problem when a transaction which involving multiple nodes will make sure Atomicity (All-or-nothing).
 
+To achieve `Atomicity`, we need to implement a `Transaction Coordinator` to control the transactions of multiple database servers.
 ## 1.3 Multi Raft
 `Multi raft` is multiple raft-groups, each `raft-group` includes multiple `raft-nodes`. Each raft-group will be responsible for manage one shard or one partition of data. 
 
 In `Mini Account System`, we will call each raft-group is a bucket which will store a shard of the data of the `account` table.
 
 # 2. Data structutre
-Take a example of 3-node cluster. Each node will have 2 buckets work as a bucket for holding a range or part of data of table `account`, each node is a raft-node.
+Take a example of 3-node cluster. Each node will have 2 buckets work as a bucket for holding a different range or part of data of table `account`, each bucket is a raft-node.
 
 | Node 1       	| Node 2     | Node 3     |
 | :------------- | :----------: | -----------: |
@@ -31,14 +33,14 @@ Take a example of 3-node cluster. Each node will have 2 buckets work as a bucket
 
 Example:
 - Each bucket_* is a Raft-node.
-- **bucket_1** and *bucket_1'* work in the same Raft-group.
+- **bucket_1** and *bucket_1'* belong to the same Raft-group.
 
-Assigning a data to bucket by:
+When new data incoming, we assign a data to bucket by:
 ```
 bucket_id := max_id % (num_of_buckets)
 ```
+We also store the information of the bucket_id and the corresponding peers in Redis:
 
-We have a data structure to keep track buckets in Redis:
 | bucket_id       	| peers    |
 | :------------- | :----------: |
 |  1 | 127.0.0.1:50041,127.0.0.1:50042  |
@@ -48,15 +50,15 @@ For example in the picture:
 ```plantuml
 @startuml
 node "Transaction Manager" as node1 #white
-node "Resource Manager" as node2 {
+node "Resource Manager 1" as node2 {
 	frame bucket_1 as A1  #red
 	frame bucket_3 as C1 #yellow
 }
-node "Resource Manager" as node3 {
+node "Resource Manager 2" as node3 {
 	frame bucket_1 as A2 #red
 	frame bucket_2 as B2 #green
 }
-node "Resource Manager" as node4 {
+node "Resource Manager 3" as node4 {
 	frame bucket_2 as B3 #green
 	frame bucket_3 as C3 #yellow
 }
@@ -72,14 +74,15 @@ C1 .. C3: replicated
 ```
 *Noted that for easier we take the example of 3-node, with number of raft nodes per bucket is 2, but for general case we need 5-node cluster because raft nodes needs to be odd number.*
 
-We will have a table to keep track which data is located in which bucket:
+We also have a data structure to keep track which data belong to which buckets, this is stored in Redis:
 
 | account_id       	| buckets    |
 | :------------- | :----------: |
 |  1 | 127.0.0.1:50051   |
 |  2  | 127.0.0.1:50041 |
+| ... | ... |
 
-So that when a transaction begins, the transaction client will know which peer bucket to talk with based on the account_id.
+So that when a transaction begins, the transaction client will know which peer bucket to talk with based on the `account_id`.
 # 3. Transaction
 In **Transaction Coordinator** there are 2 types of object:
 ## 3.1 Global transation
@@ -295,22 +298,15 @@ When `AccountService` wants to make changes in Database, it first send the chang
 Then `AccountService` will call the function `ApplyInstructionToStateMachine` to begin commit data changes to database. 
 ```plantuml
 @startuml
-allowmixing
 rectangle AccountService {
 
 }
 rectangle RaftService {
-	object RaftNode_Leader {
-		127.0.0.1:12279
-	}
+	node RaftNode_Leader 
 
-	object RaftNode_Follower1 {
-		127.0.0.2:12279
-	}
+	node RaftNode_Follower1
 
-	object RaftNode_Follower2 {
-		127.0.0.3:12279
-	}
+	node RaftNode_Follower2
 }
 
 queue proposeC
@@ -497,8 +493,67 @@ TC -> RM: Phase2: RollBackv
 @enduml
 ```
 
+## Write Locking
+Trường hợp 2 local transaction cùng update dữ liệu A = A - 100:
+### Trường hợp commit
+![Alt text](https://g.gravizo.com/svg?
+@startumls
+entity subTXN_1
+activate subTXN_1
+entity subTXN_2
+activate subTXN_2
+
+subTXN_1 -> subTXN_1: Get global lock
+subTXN_1 -> subTXN_1: Update A = A - 100\nLocal commit
+
+subTXN_2 -> subTXN_2: wait for global lock\n...\n...
+subTXN_1 -> subTXN_1: Global commit\nRelease global lock
+subTXN_2 -> subTXN_2: Got global lock
+subTXN_2 -> subTXN_2: Update A = A - 100\nLocal commit
+subTXN_2 -> subTXN_2: Global commit\nRelease global lock
+@enduml
+)
+### Trường hợp rollback
+```plantuml
+@startumls
+entity subTXN_1
+activate subTXN_1
+entity subTXN_2
+activate subTXN_2
+
+subTXN_1 -> subTXN_1: Get global lock
+subTXN_1 -> subTXN_1: Update A = A - 100\nLocal commit
+
+subTXN_2 -> subTXN_2: wait for global lock\n...\n...
+subTXN_1 -> subTXN_1: Global rollback\nRelease global lock
+subTXN_2 -> subTXN_2: Got global lock
+subTXN_2 -> subTXN_2: Update A = A - 100\nLocal commit
+subTXN_2 -> subTXN_2: Global commit\nRelease global lock
+@enduml
+```
+
+## Read Locking
+Hiện tại Read không lock record. Nên khi đọc dữ liệu có thể đọc dirty-read dữ liệu chưa được COMMIT:
+
+### Read-Uncommitted
+```plantuml
+@startumls
+entity subTXN_1
+activate subTXN_1
+entity subTXN_2
+activate subTXN_2
+
+subTXN_1 -> subTXN_1: Get global lock, A = 1000
+subTXN_1 -> subTXN_1: Update A = A - 100\nLocal commit
+subTXN_1 -> subTXN_1: A = 900
+subTXN_2 -> subTXN_2: Select A, A = 900
+subTXN_1 -> subTXN_1: Global rollback\nRelease global lock
+subTXN_1 -> subTXN_1: Update A = 1000
+@enduml
+```
 ## Các vấn đề chưa, sẽ giải quyết
 - Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.
+- Hiện tại chỉ lock resource khi write, khi read dữ liệu có thể bị trường hợp đọc dữ liệu chưa được commit. (`READ UNCOMMITTED`). Có thể nâng cấp lên thành `READ COMMITTED`.
 - Account Service cần được thực hiện async, tức là trả về kết quả phase 1 ngay khi propose xong, không đợi đến bước apply change to state machine. Sau đó TC gửi request Commit, thì Account Service mới bắt đầu xin global lock và commit. Tương tự với trường hợp Rollback.
 - Cần phải lưu UNDO log dữ liệu snapshot before change và after change của row trước và sau khi commit.
 - Hiện tại chưa hỗ trợ việc undo, redo log khi TC mất điện. Có nghĩa là chỉ hỗ trợ undo nếu có 1 giao dịch fail, TC vẫn hoạt động bình thường, nếu như TC chưa kịp commit giao dịch mà bị mất điện thì khi start lên lại, TC phải thực hiện crash recovery, scan log xem có giao dịch nào chưa commit thì sẽ `undo`, còn giao dịch nào đã commit nhưng chưa write xuống DB sẽ đuợc `redo`
