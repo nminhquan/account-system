@@ -124,6 +124,7 @@ func (localTxn *LocalTransaction) Begin() bool {
 //TODO: use CreatePhase2CommitRequest instead
 func (localTxn *LocalTransaction) Commit() {
 	log.Println("[LocalTXN] Commit() local TXN for rmClient: ", localTxn.rmClient, "data: ", localTxn.data)
+	// Create commit log before apply to disk
 	txnDao.CreateSubTransactionEntry(localTxn.localTxnId, model.TXN_STATE_COMMITTED, localTxn.data, localTxn.globalTxnId)
 	localTxn.globalLock.CreateReleaseRequest()
 	log.Println("[LocalTXN] Commit() DONE: ", localTxn.rmClient, "data: ", localTxn.data)
@@ -131,8 +132,10 @@ func (localTxn *LocalTransaction) Commit() {
 
 func (localTxn *LocalTransaction) Rollback() {
 	log.Printf("[LocalTXN:%v] Rollback() local Rollback", localTxn.localTxnId)
-	localTxn.rmClient.CreatePhase2RollbackRequest(localTxn.data)
+	// create roll back log before rolling back
 	txnDao.CreateSubTransactionEntry(localTxn.localTxnId, model.TXN_STATE_ABORTED, localTxn.data, localTxn.globalTxnId)
+
+	localTxn.rmClient.CreatePhase2RollbackRequest(localTxn.data)
 	localTxn.globalLock.CreateReleaseRequest()
 	log.Printf("[LocalTXN:%v] Rollback() DONE local Rollback", localTxn.localTxnId)
 }

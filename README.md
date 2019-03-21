@@ -1,8 +1,13 @@
 
 
 # Mini Account System
-
-
+Some abbreviations used in this document:
+```
+TM: Transaction Manager
+TC: Transaction Coordinator
+GLS: GlobalLock Service
+RM: Resource Manager
+```
 # 1. Distributed systems
 Given the distributed system, the problem is to make sure the ACID (Atomicity, Consistency, Isolation, Durability) among the cluster nodes.
 ## 1.1 Raft consensus
@@ -13,8 +18,6 @@ Given the data is sharded between nodes, the problem when a transaction which in
 
 ## 1.3 Multi Raft
 `Multi raft` is multiple raft-groups, each `raft-group` includes multiple `raft-nodes`. Each raft-group will be responsible for manage one shard or one partition of data. 
-
-![](https://elasticell.readthedocs.io/en/latest/imgs/architecture.png)
 
 In `Mini Account System`, we will call each raft-group is a bucket which will store a shard of the data of the `account` table.
 
@@ -50,16 +53,17 @@ node "Resource Manager" as node2 {
 	frame bucket_3 as C1 #yellow
 }
 node "Resource Manager" as node3 {
-	frame bucket_1' as A2 #red
+	frame bucket_1 as A2 #red
 	frame bucket_2 as B2 #green
 }
 node "Resource Manager" as node4 {
-	frame bucket_2' as B3 #green
-	frame bucket_3' as C3 #yellow
+	frame bucket_2 as B3 #green
+	frame bucket_3 as C3 #yellow
 }
-node1 --- node2
-node1 --- node3
-node1 --- node4
+
+node1 -- node2
+node1 -- node3
+node1 - node4
 
 A1 .. A2: replicated
 B2 .. B3: replicated
@@ -79,6 +83,7 @@ So that when a transaction begins, the transaction client will know which peer b
 # 3. Transaction
 In **Transaction Coordinator** there are 2 types of object:
 ## 3.1 Global transation
+`Global Transaction` includes multiple `Local Transaction`.
 ```plantuml
 @startuml
 interface Transaction {
@@ -101,7 +106,11 @@ Transaction <|-- LocalTransaction
 @enduml
 ```
 ## 3.2 Local transation
-  
+Each `Local Transaction` responsible for a single Transaction on a `Bucket` or a `Raft-group`.
+
+For example:
+- We want to transfer `$100` from `accountA` (stored in bucket_1) to `accountB` (stored in bucket_2). We will create 2 Local Transaction object, one to send RPC request to `ResourceManager` of `bucket_1` to update accountA - $100 and one to send RPC request to `ResourceManager2` of `bucket_2` to update accountB + $100.
+- The status of the Global Transaction is based on status of its Local Transactions.
 ```plantuml
 @startuml
 class GlobalTransaction 
@@ -235,10 +244,174 @@ When calling `lockCtl.Lock()`, the lockController will create a unique key in `R
 - The current lock controller timeouts (defined in LockTimeout parameter)
 
 ## 4.3 Resource Manager
-### 4.3.1 Account Service
-### 4.3.2 Raft Service (Raft)
+Resource Manager is a gRPC server with following methods:
+```
+ProcessPhase1(ctx context.Context, in *pb.TXRequest) (*pb.TXReply, error)
+ProcessPhase2Commit(ctx context.Context, in *pb.TXRequest) (*pb.TXReply, error)
+ProcessPhase2Rollback(ctx context.Context, in *pb.TXRequest) (*pb.TXReply, error)
+```
 
-## 4.4 Workflows
+When received request, resource manager will decode the object in the message to the Instruction object with the following fields:
+```
+type Instruction struct {
+	Type string
+	Data interface{}
+}
+```
+
+Depends on the type of instuction, the data is different, for example, if the type of instruction is `INS_TYPE_CREATE_ACCOUNT`, then the Data is the `AccountInfo` object, if `INS_TYPE_SEND_PAYMENT` or  `INS_TYPE_RECEIVE_PAYMENT` then the Data field is the `PaymentInfo` object.
+### 4.3.1 Account Service
+Account Service is responsible for proposing changes to Raft service, when Raft returns the message inform that consensus is done, Account Service will communitcate with GlobalLock Service to acquire the Lock for before committing locally.
+
+Account Service also responsible for Rolling back changes when receives request from TC.
+
+After making changes to DB, Account Service will return status to TC to inform transaction is failed or succeeded.
+
+AccountService interface is defined as below:
+```
+type AccountService interface {
+	Start()
+	CreateAccount(string, float64) string
+	ProcessSendPayment(string, string, float64) string
+	ProcessReceivePayment(string, string, float64) string
+	ProcessRollbackPayment(accountNum string, amount float64) string
+	Propose(interface{})                      //propose to RaftNode
+	ReadCommits(<-chan *string, <-chan error) //read commits from RaftNode
+}
+```
+
+### 4.3.2 Raft Service (Raft)
+When starting ResourceManager, we also start Raft service:
+```
+clusterInfo := consensus.RaftInit(clusterConfig)
+accountDB := db.CreateAccountDB("localhost", "root", "123456", *clusterConfig.DBName)
+var accountService rm.AccountService = rm.NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
+startServer(accountService, clusterConfig.RPCPort)
+```
+
+### 4.3.3 Propose Changes
+When `AccountService` wants to make changes in Database, it first send the changes to `proposeC`, a go channel, then `RaftNode_Leader` takes the proposed changes and make consensus with other `RaftNode_Follower*`, when proposed changes are permitted then the change will be sent to `commitC` go channel back to `AccountService`.
+
+Then `AccountService` will call the function `ApplyInstructionToStateMachine` to begin commit data changes to database. 
+```plantuml
+@startuml
+allowmixing
+rectangle AccountService {
+
+}
+rectangle RaftService {
+	object RaftNode_Leader {
+		127.0.0.1:12279
+	}
+
+	object RaftNode_Follower1 {
+		127.0.0.2:12279
+	}
+
+	object RaftNode_Follower2 {
+		127.0.0.3:12279
+	}
+}
+
+queue proposeC
+queue commitC
+AccountService --> proposeC: Propose()
+AccountService <- commitC: Commit()
+proposeC --> RaftNode_Leader
+RaftNode_Leader --> commitC
+RaftNode_Leader -- RaftNode_Follower1: raftHttp
+RaftNode_Leader -- RaftNode_Follower2: raftHttp
+RaftNode_Follower1 - RaftNode_Follower2: raftHttp
+
+@enduml
+```
+
+### 4.3.3 Commit Changes
+Before committing changes to DB, first `AccountService` asks `GlobalLock Service` to `AcquireLock()`, if success, it will execute the SQL-command to update the data then return `RPC_MESSAGE_OK` to `Transaction Coordinator`. If failed, it returns `RPC_MESSAGE_FAIL`.
+
+When `Transaction Coordinator` receives the `RPC_MESSAGE_OK` from all `Resoure Managers`, it will execute the `Phase2Commit`, update the transaction status to `COMMITTED` and then call `ReleaseLock()`.
+
+If it receives `RPC_MESSAGE_FAIL`, it will execute the `Phase2Rollback`, update the transaction status to `ABORTED` and then call `ReleaseLock()`.
+### 4.4 Data Access Objects (DAO)
+`DAO` objects are located in `./dao` directory. Including `AccountDAO`, `PaymentDAO` and `TxnDAO`
+
+```plantuml
+@startuml
+allowmixing
+object AccountService
+interface AccountDAO {
+	GetAccount()
+	CreateAccount()
+	UpdateAccountBalance()
+}
+interface PaymentDAO {
+	CreatePayment()
+}
+database AccountDB {
+	frame account
+	frame payment
+}
+AccountService *-- AccountDAO
+AccountService *-- PaymentDAO
+AccountDAO ---> account
+PaymentDAO ---> payment
+@enduml
+```
+
+TC uses TxnCoordinatorDAO to operate with Redis:
+```plantuml
+@startuml
+allowmixing
+object "Transaction Coordinator" as TC {
+}
+interface TxnCoordinatorDAO {
+	GetMaxId() 
+	IncrMaxId() 
+	GetPeersList()
+	CreateTransactionEntry()
+	CreateSubTransactionEntry()
+	CheckLock()
+	CreateLock()
+	RefreshLock()
+	DeleteLock()
+	GetPeerBucket()
+	InsertPeerBucket()
+}
+
+database "Redis" {
+	frame lock
+	frame txn
+}
+TC *-- TxnCoordinatorDAO
+TxnCoordinatorDAO ---> lock
+TxnCoordinatorDAO ---> txn
+@enduml
+```
+## Starting servers:
+### Start Transaction Manager:
+Starting Transaction Coordinator & Global Lock Service using goreman, define the Procfile1 with following content:
+```
+tc-1: go run main.go --mode tc
+```
+Then execute the file with command:
+```
+goreman -f Procfile1 start
+```
+### Start Resource Manager:
+Start Resource Manager along with Raft Service using goreman, define Procfile2 with the content, this will create 3 processes, each for one single-node raft-group:
+```
+# Start 3 Single-node cluster
+raftgroup1-1: go run main.go --mode rm --clusterid 1 --id 1 --cluster http://127.0.0.1:12379 --port :50041 --db mas1
+raftgroup2-1: go run main.go --mode rm --clusterid 2 --id 1 --cluster http://127.0.0.1:22379 --port :50051 --db mas2
+raftgroup3-1: go run main.go --mode rm --clusterid 3 --id 1 --cluster http://127.0.0.1:32379 --port :50061 --db mas3
+```
+
+Then execute the file with command:
+
+```
+goreman -f Procfile2 start
+```
+## 4.5 Workflows
 ### 4.4.1 Create Account
 When TC receive a create request from user with AccountInfo:
 ```
@@ -248,7 +421,7 @@ type AccountInfo struct {
 	Balance float64
 }
 ```
-### 4.4.2 Create Payment
+### 4.5.2 Create Payment
 When TC receive a payment request from user with PaymentInfo:
 ```
 type PaymentInfo struct {
@@ -301,7 +474,7 @@ activate RM
 TC -> Global_TXN: Create GlobalTransaction\nPaymentInfo{From:A,To:B,Amount:100}
 activate Global_TXN
 
-entity Send_TXN
+entity Send_TXNv
 entity Recv_TXN
 
 Global_TXN -> Send_TXN: create sub transaction\nfor `A` account
@@ -320,7 +493,13 @@ Recv_TXN -> TC: FAILED
 deactivate Send_TXN
 deactivate Recv_TXN
 
-TC -> RM: Phase2: RollBack
+TC -> RM: Phase2: RollBackv
 @enduml
 ```
 
+## Các vấn đề chưa, sẽ giải quyết
+- Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.
+- Account Service cần được thực hiện async, tức là trả về kết quả phase 1 ngay khi propose xong, không đợi đến bước apply change to state machine. Sau đó TC gửi request Commit, thì Account Service mới bắt đầu xin global lock và commit. Tương tự với trường hợp Rollback.
+- Cần phải lưu UNDO log dữ liệu snapshot before change và after change của row trước và sau khi commit.
+- Hiện tại chưa hỗ trợ việc undo, redo log khi TC mất điện. Có nghĩa là chỉ hỗ trợ undo nếu có 1 giao dịch fail, TC vẫn hoạt động bình thường, nếu như TC chưa kịp commit giao dịch mà bị mất điện thì khi start lên lại, TC phải thực hiện crash recovery, scan log xem có giao dịch nào chưa commit thì sẽ `undo`, còn giao dịch nào đã commit nhưng chưa write xuống DB sẽ đuợc `redo`
+- Multi-raft config change rebalance data -> hiện tại chưa hỗ trợ việc redistribute lại data khi add thêm Raft-group vào Multi-raft.
