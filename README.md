@@ -496,7 +496,7 @@ TC -> RM: Phase2: RollBackv
 ## Write Locking
 Trường hợp 2 local transaction cùng update dữ liệu A = A - 100:
 ### Trường hợp commit
-![Alt text](https://g.gravizo.com/svg?
+```plantuml
 @startumls
 entity subTXN_1
 activate subTXN_1
@@ -512,7 +512,7 @@ subTXN_2 -> subTXN_2: Got global lock
 subTXN_2 -> subTXN_2: Update A = A - 100\nLocal commit
 subTXN_2 -> subTXN_2: Global commit\nRelease global lock
 @enduml
-)
+```
 ### Trường hợp rollback
 ```plantuml
 @startumls
@@ -554,6 +554,7 @@ subTXN_1 -> subTXN_1: Update A = 1000
 ## Các vấn đề chưa, sẽ giải quyết
 - Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.
 - Hiện tại chỉ lock resource khi write, khi read dữ liệu có thể bị trường hợp đọc dữ liệu chưa được commit. (`READ UNCOMMITTED`). Có thể nâng cấp lên thành `READ COMMITTED`.
+- Hiện tại, 1 transaction sẽ get global lock trước rồi mới bắt đầu local lock rồi local commit, nhưng để tăng performance, có thể làm giống [Fescar AT](https://github.com/fescar-group/awesome-fescar/blob/master/wiki/en-us/Fescar-AT.md) đó là local lock -> global lock -> local commit -> global commit. Như vậy nếu trường hợp có 2 transaction cùng update 1 dữ liệu thì sẽ nhanh hơn, nhưng cũng sẽ có trường hợp bị chờ deadlock.
 - Account Service cần được thực hiện async, tức là trả về kết quả phase 1 ngay khi propose xong, không đợi đến bước apply change to state machine. Sau đó TC gửi request Commit, thì Account Service mới bắt đầu xin global lock và commit. Tương tự với trường hợp Rollback.
 - Cần phải lưu UNDO log dữ liệu snapshot before change và after change của row trước và sau khi commit.
 - Hiện tại chưa hỗ trợ việc undo, redo log khi TC mất điện. Có nghĩa là chỉ hỗ trợ undo nếu có 1 giao dịch fail, TC vẫn hoạt động bình thường, nếu như TC chưa kịp commit giao dịch mà bị mất điện thì khi start lên lại, TC phải thực hiện crash recovery, scan log xem có giao dịch nào chưa commit thì sẽ `undo`, còn giao dịch nào đã commit nhưng chưa write xuống DB sẽ đuợc `redo`
