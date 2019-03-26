@@ -1,4 +1,4 @@
-module mas
+module github.com/nminhquan/mas
 
 go 1.12
 
