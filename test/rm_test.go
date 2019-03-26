@@ -2,9 +2,9 @@ package mytest
 
 import (
 	"fmt"
-	"mas/coordinator"
 	"mas/db"
 	"mas/model"
+	. "mas/resource_manager"
 	mytest_mock "mas/test/mock"
 	"testing"
 
@@ -32,7 +32,7 @@ func TestCreateAccount(t *testing.T) {
 		}
 	}()
 
-	var accService = coordinator.NewAccountService(&db.AccountDB{}, commitC, proposeC, nil, nil)
+	var accService = NewAccountService(&db.AccountDB{}, commitC, proposeC, nil, nil)
 	go accService.Start()
 	result := accService.CreateAccount("aa", 0)
 	assert.Assert(t, result == "OK")
@@ -60,16 +60,16 @@ func TestProccessingPayment(t *testing.T) {
 			commitC <- &c
 		}
 	}()
-	var accService = coordinator.NewAccountService(&db.AccountDB{}, commitC, proposeC, nil, nil)
+	var accService = NewAccountService(&db.AccountDB{}, commitC, proposeC, nil, nil)
 	go accService.Start()
 	mockDao := mytest_mock.NewMockAccountDAO(mockCtrl)
 	mockDao.EXPECT().GetAccount("aa").Return(&accInfo).MaxTimes(10)
 
 	fmt.Println(mockDao.GetAccount("aa"))
-	accService.SetAccDAO(mockDao)
-	result := accService.ProcessPayment("aa", "bb", 100)
+
+	result := accService.ProcessSendPayment("aa", "bb", 100)
 	assert.Equal(t, result, "OK")
 
-	result2 := accService.ProcessPayment("aa", "bb", 100)
+	result2 := accService.ProcessReceivePayment("aa", "bb", 100)
 	assert.Assert(t, result2 == "OK")
 }

@@ -21,9 +21,9 @@ func CreateMainClient(serverAddress string) *MainClient {
 
 func main() {
 	client := CreateMainClient(model.TC_SERVICE_HOST)
-	// client.CreateAccountRequest("from_test_1", 2000)
-	// client.CreateAccountRequest("to_test_1", 4000)
-	client.CreatePaymentRequest("from_test", "to_test", 10000)
+	// client.CreateAccountRequest("A", 2000)
+	// client.CreateAccountRequest("B", 4000)
+	client.CreatePaymentRequest("A", "B", 100)
 }
 
 func (client *MainClient) CreateAccountRequest(accountNumber string, balance float64) bool {

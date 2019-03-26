@@ -6,9 +6,9 @@ import (
 	"flag"
 	"log"
 	consensus "mas/consensus"
-	"mas/coordinator"
 	"mas/db"
 	"mas/model"
+	. "mas/resource_manager"
 	"os"
 	"testing"
 	"time"
@@ -36,10 +36,10 @@ func StartRaftNode() *consensus.RaftClusterInfo {
 	return clusterInfo
 }
 
-func CreateAccountService(clusterInfo *consensus.RaftClusterInfo) coordinator.AccountService {
+func CreateAccountService(clusterInfo *consensus.RaftClusterInfo) AccountService {
 	log.Println("Raft node created")
 	accountDB := db.CreateAccountDB("localhost", "root", "123456", "abc")
-	accountServ := coordinator.NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
+	accountServ := NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
 	go accountServ.ReadCommits(clusterInfo.CommitC, clusterInfo.ErrorC)
 	return accountServ
 }
@@ -51,26 +51,6 @@ func TestProposeCWhenPropose(t *testing.T) {
 	//Propose
 	accountServ.Propose(account)
 	time.Sleep(20000 * time.Millisecond)
-}
-
-func TestCommitCoWhenProposeSuccess(t *testing.T) {
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		// case msg := <-clusterInfo.ProposeC:
-	// 		// 	log.Printf("Proposed: %v", decodeMessage(&msg))
-	// 		case msg := <-clusterInfo.CommitC:
-	// 			if msg == nil {
-	// 				continue
-	// 			}
-
-	// 			log.Printf("Commited msg: %v", *msg)
-	// 			// log.Printf("Commited: %v", decodeMessage(msg))
-	// 		default:
-	// 			// log.Println("waiting proposeC")
-	// 		}
-	// 	}
-	// }()
 }
 
 func encodeMessage(data *struct{}) string {

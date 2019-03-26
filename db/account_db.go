@@ -77,7 +77,7 @@ func (accDB *AccountDB) GetAccountInfoFromDB(accountNumber string) *AccountInfo 
 	var accountInfo AccountInfo
 	err := db.QueryRow("select * from account where account_number = ?", accountNumber).Scan(&accountInfo.Id, &accountInfo.Number, &accountInfo.Balance)
 	if err != nil {
-		panic("Cannot get account")
+		log.Printf("Cannot get account")
 	}
 	return &accountInfo
 }

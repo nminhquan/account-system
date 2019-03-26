@@ -116,6 +116,7 @@ func (tcDao *TxnCoordinatorDAOImpl) CreateTransactionEntry(txnId string, ts int6
 		"locks": lockIds,
 	}
 	_, err := tcDao.cache.HMSet(txnHKey, fields).Result()
+	tcDao.cache.Expire(txnHKey, 600000*time.Millisecond)
 
 	if err != nil {
 		log.Fatalln("cannot CreateTransactionEntry")

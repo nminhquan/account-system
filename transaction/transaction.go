@@ -16,12 +16,12 @@ type Transaction interface {
 }
 
 type GlobalTransaction struct {
-	subTxn []*LocalTransaction
+	subTxn []Transaction
 }
 
 // Create transaction with peers address
 // Also contain the data for transferring
-func NewGlobalTransaction(subTxn []*LocalTransaction) *GlobalTransaction {
+func NewGlobalTransaction(subTxn []Transaction) *GlobalTransaction {
 	// Create Tx record hold the switch
 	return &GlobalTransaction{subTxn}
 }
@@ -82,9 +82,7 @@ func (tx *GlobalTransaction) Rollback() {
 	// delete undo snapshot
 	// release globalock
 	for _, localTxn := range tx.subTxn {
-		if localTxn.State() { // only roll back success txn
-			go localTxn.Rollback()
-		}
+		go localTxn.Rollback()
 
 	}
 }
@@ -133,13 +131,11 @@ func (localTxn *LocalTransaction) Commit() {
 func (localTxn *LocalTransaction) Rollback() {
 	log.Printf("[LocalTXN:%v] Rollback() local Rollback", localTxn.localTxnId)
 	// create roll back log before rolling back
-	txnDao.CreateSubTransactionEntry(localTxn.localTxnId, model.TXN_STATE_ABORTED, localTxn.data, localTxn.globalTxnId)
+	if !localTxn.state {
+		txnDao.CreateSubTransactionEntry(localTxn.localTxnId, model.TXN_STATE_ABORTED, localTxn.data, localTxn.globalTxnId)
 
-	localTxn.rmClient.CreatePhase2RollbackRequest(localTxn.data)
-	localTxn.globalLock.CreateReleaseRequest()
-	log.Printf("[LocalTXN:%v] Rollback() DONE local Rollback", localTxn.localTxnId)
-}
-
-func (localTxn *LocalTransaction) State() bool {
-	return localTxn.state
+		localTxn.rmClient.CreatePhase2RollbackRequest(localTxn.data)
+		localTxn.globalLock.CreateReleaseRequest()
+		log.Printf("[LocalTXN:%v] Rollback() DONE local Rollback", localTxn.localTxnId)
+	}
 }

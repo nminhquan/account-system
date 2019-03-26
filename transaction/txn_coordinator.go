@@ -51,15 +51,15 @@ func (tc *TxnCoordinator) CreateAccount(ctx context.Context, in *pb.AccountReque
 	globalLock := client.CreateLockClient(model.LOCK_SERVICE_HOST, accInfo.Number)
 	instruction := model.Instruction{Type: model.INS_TYPE_CREATE_ACCOUNT, Data: accInfo}
 	globalTxnId := utils.GenXid()
+
 	var localTxn = NewLocalTransaction(rmClient, globalLock, instruction, globalTxnId)
-	subTxns := []*LocalTransaction{
+	subTxns := []Transaction{
 		localTxn,
 	}
 
 	var txn Transaction = NewGlobalTransaction(subTxns)
 
 	txn.Begin()
-
 	txnDao.InsertPeerBucket(accInfo.Number, pl[thisPeers])
 	return &pb.AccountReply{Message: "Account Added"}, nil
 }
@@ -84,7 +84,7 @@ func (tc *TxnCoordinator) CreatePayment(ctx context.Context, in *pb.PaymentReque
 	globalTxnId := utils.GenXid()
 	var localTxnFrom = NewLocalTransaction(rmClientFrom, globalLockFrom, instructionFrom, globalTxnId)
 	var localTxnTo = NewLocalTransaction(rmClientTo, globalLockTo, instructionTo, globalTxnId)
-	subTxns := []*LocalTransaction{
+	subTxns := []Transaction{
 		localTxnFrom,
 		localTxnTo,
 	}

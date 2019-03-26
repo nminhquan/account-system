@@ -1,5 +1,4 @@
 
-
 # Mini Account System
 Some abbreviations used in this document:
 
@@ -7,17 +6,64 @@ Some abbreviations used in this document:
 - TC: Transaction Coordinator
 - GLS: GlobalLock Service
 - RM: Resource Manager
+- TXN: Transaction
 
+# Table of Contents
+- [Mini Account System](#mini-account-system)
+- [Table of Contents](#table-of-contents)
+- [1. Distributed systems](#1-distributed-systems)
+	- [1.1 Raft consensus](#11-raft-consensus)
+	- [1.2 Two-Phase Commit (2PC)](#12-two-phase-commit-2pc)
+	- [1.3 Multi Raft](#13-multi-raft)
+- [2. Data structutre](#2-data-structutre)
+- [3. Transaction](#3-transaction)
+	- [3.1 Global transation](#31-global-transation)
+	- [3.2 Local transation](#32-local-transation)
+- [4. System designs](#4-system-designs)
+	- [4.1 Components](#41-components)
+	- [4.2 Transaction Manager](#42-transaction-manager)
+		- [4.2.1 Transaction Coordinator (TC)](#421-transaction-coordinator-tc)
+		- [4.2.2 GlobalLock Service (GLS)](#422-globallock-service-gls)
+	- [4.3 Resource Manager](#43-resource-manager)
+		- [4.3.1 Account Service](#431-account-service)
+		- [4.3.2 Raft Service (Raft)](#432-raft-service-raft)
+		- [4.3.3 Propose Changes](#433-propose-changes)
+		- [4.3.3 Commit Changes](#433-commit-changes)
+		- [4.4 Data Access Objects (DAO)](#44-data-access-objects-dao)
+	- [Starting servers:](#starting-servers)
+		- [Start Transaction Manager:](#start-transaction-manager)
+		- [Start Resource Manager:](#start-resource-manager)
+		- [Add RM to cluster](#add-rm-to-cluster)
+	- [4.5 Workflows](#45-workflows)
+		- [4.4.1 Create Account](#441-create-account)
+		- [4.5.2 Create Payment](#452-create-payment)
+	- [Commit case:](#commit-case)
+	- [Rollback case:](#rollback-case)
+	- [Write Locking](#write-locking)
+		- [Trường hợp commit](#tr%C6%B0%E1%BB%9Dng-h%E1%BB%A3p-commit)
+		- [Trường hợp rollback](#tr%C6%B0%E1%BB%9Dng-h%E1%BB%A3p-rollback)
+	- [Read Locking](#read-locking)
+		- [Read-Uncommitted](#read-uncommitted)
+- [5. JWT Authentication](#5-jwt-authentication)
+	- [Các vấn đề chưa, sẽ giải quyết](#c%C3%A1c-v%E1%BA%A5n-%C4%91%E1%BB%81-ch%C6%B0a-s%E1%BA%BD-gi%E1%BA%A3i-quy%E1%BA%BFt)
+	- [Tài liệu tham khảo:](#t%C3%A0i-li%E1%BB%87u-tham-kh%E1%BA%A3o)
+	- [Appendix A: Raft cluster configuration](#appendix-a-raft-cluster-configuration)
+	- [Appendix B: TODO: Redistribute (rebalance) Data khi add node](#appendix-b-todo-redistribute-rebalance-data-khi-add-node)
+  
 # 1. Distributed systems
-Given the distributed system, the problem is to make sure the ACID (Atomicity, Consistency, Isolation, Durability) among the cluster nodes.
+Given the distributed system, where each service has its own Database system, the problem is to make sure the ACID (Atomicity, Consistency, Isolation, Durability) of a transaction between data among the cluster nodes.
 ## 1.1 Raft consensus
-This project uses etcd/raft library to implemet the Consistency between nodes [Link](https://godoc.org/github.com/coreos/etcd/raft)
+This project uses etcd/raft library to implement the Consistency between nodes [Link](https://godoc.org/github.com/coreos/etcd/raft)
 
 Raft help to replicate data to other nodes.
-## 1.2 2-Phase Commit
+
+**Raft is used to achieve CP.**
+## 1.2 Two-Phase Commit (2PC)
 Given the data is sharded between nodes, the problem when a transaction which involving multiple nodes will make sure Atomicity (All-or-nothing).
 
 To achieve `Atomicity`, we need to implement a `Transaction Coordinator` to control the transactions of multiple database servers.
+
+**Use 2PC to achieve CA.**
 ## 1.3 Multi Raft
 `Multi raft` is multiple raft-groups, each `raft-group` includes multiple `raft-nodes`. Each raft-group will be responsible for manage one shard or one partition of data. 
 
@@ -114,10 +160,11 @@ Each `Local Transaction` responsible for a single Transaction on a `Bucket` or a
 For example:
 - We want to transfer `$100` from `accountA` (stored in bucket_1) to `accountB` (stored in bucket_2). We will create 2 Local Transaction object, one to send RPC request to `ResourceManager` of `bucket_1` to update accountA - $100 and one to send RPC request to `ResourceManager2` of `bucket_2` to update accountB + $100.
 - The status of the Global Transaction is based on status of its Local Transactions.
+  
 ```plantuml
 @startuml
-class GlobalTransaction 
-class LocalTransaction 
+object GlobalTransaction 
+object LocalTransaction 
 
 GlobalTransaction *-- "1...n" LocalTransaction
 @enduml
@@ -323,7 +370,7 @@ RaftNode_Follower1 - RaftNode_Follower2: raftHttp
 ```
 
 ### 4.3.3 Commit Changes
-Before committing changes to DB, first `AccountService` asks `GlobalLock Service` to `AcquireLock()`, if success, it will execute the SQL-command to update the data then return `RPC_MESSAGE_OK` to `Transaction Coordinator`. If failed, it returns `RPC_MESSAGE_FAIL`.
+Before committing changes to DB, first `AccountService` asks `GlobalLock Service` to `AcquireLock()`, if success, it will execute the update-command to update the data then return `RPC_MESSAGE_OK` to `Transaction Coordinator`. If failed, it returns `RPC_MESSAGE_FAIL`.
 
 When `Transaction Coordinator` receives the `RPC_MESSAGE_OK` from all `Resoure Managers`, it will execute the `Phase2Commit`, update the transaction status to `COMMITTED` and then call `ReleaseLock()`.
 
@@ -331,18 +378,26 @@ If it receives `RPC_MESSAGE_FAIL`, it will execute the `Phase2Rollback`, update 
 ### 4.4 Data Access Objects (DAO)
 `DAO` objects are located in `./dao` directory. Including `AccountDAO`, `PaymentDAO` and `TxnDAO`
 
+```
+type AccountDAO interface {
+	GetAccount(accountNumber string) *model.AccountInfo
+	CreateAccount(accInfo model.AccountInfo) bool
+	UpdateAccountBalance(accountNumber string, amount float64) bool
+}
+```
+
+```
+type PaymentDAO interface {
+	CreatePayment(pmInfo PaymentInfo) string
+}
+
+```
+
 ```plantuml
 @startuml
-allowmixing
-object AccountService
-interface AccountDAO {
-	GetAccount()
-	CreateAccount()
-	UpdateAccountBalance()
-}
-interface PaymentDAO {
-	CreatePayment()
-}
+node AccountService
+rectangle AccountDAO
+rectangle PaymentDAO
 database AccountDB {
 	frame account
 	frame payment
@@ -355,24 +410,26 @@ PaymentDAO ---> payment
 ```
 
 TC uses TxnCoordinatorDAO to operate with Redis:
+```
+type TxnCoordinatorDAO interface {
+	GetMaxId() string
+	IncrMaxId() int64
+	GetPeersList() map[string]string
+	CreateTransactionEntry(string, int64, string, string)
+	CreateSubTransactionEntry(string, string, model.Instruction, string)
+	CheckLock(lockId string) (int64, error)
+	CreateLock(lockId string, state string, timeout time.Duration) (bool, error)
+	RefreshLock(lockId string, timeout time.Duration) (bool, error)
+	DeleteLock(lockId string) (int64, error)
+	GetPeerBucket(id string) string
+	InsertPeerBucket(id string, peer string)
+}
+```
+
 ```plantuml
 @startuml
-allowmixing
-object "Transaction Coordinator" as TC {
-}
-interface TxnCoordinatorDAO {
-	GetMaxId() 
-	IncrMaxId() 
-	GetPeersList()
-	CreateTransactionEntry()
-	CreateSubTransactionEntry()
-	CheckLock()
-	CreateLock()
-	RefreshLock()
-	DeleteLock()
-	GetPeerBucket()
-	InsertPeerBucket()
-}
+node "Transaction Coordinator" as TC
+rectangle TxnCoordinatorDAO
 
 database "Redis" {
 	frame lock
@@ -407,9 +464,30 @@ Then execute the file with command:
 ```
 goreman -f Procfile2 start
 ```
+
+### Add RM to cluster
+
+
+Hiện tại, khi add thêm Resource Manager vào, cần phải thông báo cho TC để TC update lại peer list.
+
+Khi add thêm RM vào cluster, sẽ có 2 trường hợp xảy ra:
+- RM đó chỉ join existing Raft group
+  - Ta cần thêm tham số `--clusterid` và `--id` và `--cluster` và `--join` để xác định raft group cần join vào. Tham số `--db mas3` có nghĩa dữ liệu replica này sẽ được lưu ở db của node 3 (mas3).
+  	```
+	go run main.go --mode rm --clusterid 1 --id 2 --cluster http://127.0.0.1:12379,http://127.0.0.1:12379 --join --port :50042 --db mas3
+	```
+  - Mọi chuyện trông đơn giản nếu như không có trường hợp thứ 2.
+
+- RM introduces 1 raft group hoàn toàn mới, trong trường hợp này có 2 options:
+  - Dữ liêu mới sẽ được insert vào đồng đều trên cả RM cũ lẫn mới.
+  - Dữ liệu cần được rebalance lại cho phù hợp với số lượng bucket cũng như số lượng replica. Xem [Appendix B: TODO: Redistribute (rebalance) Data khi add node](#appendix-b-todo-redistribute-rebalance-data-khi-add-node)
+
+	```
+	go run main.go --mode rm --clusterid 1 --id 2 --cluster http://127.0.0.1:12379,http://127.0.0.1:12379 --join --port :50042 --db mas3
+	```
 ## 4.5 Workflows
 ### 4.4.1 Create Account
-When TC receive a create request from user with AccountInfo:
+When TC receive a create request from user with AccountInvfo:
 ```
 type AccountInfo struct {
 	Id      string
@@ -489,7 +567,7 @@ Recv_TXN -> TC: FAILED
 deactivate Send_TXN
 deactivate Recv_TXN
 
-TC -> RM: Phase2: RollBackv
+TC -> RM: Phase2: RollBack
 @enduml
 ```
 
@@ -551,11 +629,60 @@ subTXN_1 -> subTXN_1: Global rollback\nRelease global lock
 subTXN_1 -> subTXN_1: Update A = 1000
 @enduml
 ```
+
+# 5. JWT Authentication
+Get the library by running this command:
+```
+go get github.com/dgrijalva/jwt-go
+```
+
+To sign and verify token:
+```
+echo {\"foo\":\"bar\"} | jwt -key ./secret_key -alg HS256 -sign - | jwt -key ./secret_key -alg HS256 -verify -
+```
+
+For simple, we use `HS256` with symetric `secret_key`, for both sign and verify, but we can use another asymetric public/private key pair using `RSA` or `ECDSA`.
+
+First, we will sign the information using the above command, output is stored in the `token.jwt` file:
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIifQ.X0-Uu2UO7r_l4HiOS06V4Xs_VTTDabZxRAYRVRHLEJA
+```
+
+On client side, when client sends a request to server, it will get the token file above:
+```
+jwtCreds, err := jwt.NewFromTokenFile(*token)
+```
+and includes in the credentials in the header:
+```
+conn, err := grpc.Dial(*serverAddr,
+		grpc.WithPerRPCCredentials(jwtCreds))
+```
+
+On server side, when received the request, service will first call `ValidateToken` to validate the token using the same `secret_key`.
+
+Right now, for simple we just validate the token at the TC Server where it handles requests from client.
+
 ## Các vấn đề chưa, sẽ giải quyết
 - Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.
-- Hiện tại chỉ lock resource khi write, khi read dữ liệu có thể bị trường hợp đọc dữ liệu chưa được commit. (`READ UNCOMMITTED`). Có thể nâng cấp lên thành `READ COMMITTED`.
+- Hiện tại chỉ lock resource khi write, khi read dữ liệu có thể bị trường hợp đọc dữ liệu chưa được commit. (`READ UNCOMMITTED`). Có thể nâng cấp lên thành `READ COMMITTED`. Khi đó cần phải hiện thực shared-lock cho Read statement.
 - Hiện tại, 1 transaction sẽ get global lock trước rồi mới bắt đầu local lock rồi local commit, nhưng để tăng performance, có thể làm giống [Fescar AT](https://github.com/fescar-group/awesome-fescar/blob/master/wiki/en-us/Fescar-AT.md) đó là local lock -> global lock -> local commit -> global commit. Như vậy nếu trường hợp có 2 transaction cùng update 1 dữ liệu thì sẽ nhanh hơn, nhưng cũng sẽ có trường hợp bị chờ deadlock.
 - Account Service cần được thực hiện async, tức là trả về kết quả phase 1 ngay khi propose xong, không đợi đến bước apply change to state machine. Sau đó TC gửi request Commit, thì Account Service mới bắt đầu xin global lock và commit. Tương tự với trường hợp Rollback.
 - Cần phải lưu UNDO log dữ liệu snapshot before change và after change của row trước và sau khi commit.
 - Hiện tại chưa hỗ trợ việc undo, redo log khi TC mất điện. Có nghĩa là chỉ hỗ trợ undo nếu có 1 giao dịch fail, TC vẫn hoạt động bình thường, nếu như TC chưa kịp commit giao dịch mà bị mất điện thì khi start lên lại, TC phải thực hiện crash recovery, scan log xem có giao dịch nào chưa commit thì sẽ `undo`, còn giao dịch nào đã commit nhưng chưa write xuống DB sẽ đuợc `redo`
 - Multi-raft config change rebalance data -> hiện tại chưa hỗ trợ việc redistribute lại data khi add thêm Raft-group vào Multi-raft.
+
+## Tài liệu tham khảo:
+1. https://en.wikipedia.org/wiki/Isolation_(database_systems)
+2. https://en.wikipedia.org/wiki/Two-phase_commit_protocol
+3. https://en.wikipedia.org/wiki/Distributed_algorithm
+4. https://github.com/fescar-group/fescar-awesome/blob/master/wiki/en-us/Fescar-AT.md
+5. https://godoc.org/github.com/coreos/etcd/raft
+6. http://thesecretlivesofdata.com/raft/
+7. https://ramcloud.stanford.edu/~ongaro/thesis.pdf
+8. http://blog.thislongrun.com/2015/03/the-confusing-cap-and-acid-wording.html
+
+## Appendix A: Raft cluster configuration
+Theo minh hoạ, Raft cần phải có số node là 2F + 1 (F là số node tối đa có thể fail), để đảm bảo đồng thuận luôn thành công và tránh trường hợp split-brain.
+
+## Appendix B: TODO: Redistribute (rebalance) Data khi add node
