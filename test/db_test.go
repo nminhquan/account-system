@@ -1,10 +1,11 @@
-package mytest
+package mas_test
 
 import (
 	"database/sql"
 	"fmt"
-	"mas/db"
 	"testing"
+
+	"gitlab.zalopay.vn/quannm4/mas/db"
 )
 
 type FakeDB struct {

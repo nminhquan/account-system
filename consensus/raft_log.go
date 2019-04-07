@@ -37,7 +37,7 @@ func (rc *RaftNode) replayWAL() *wal.WAL {
 		rc.lastIndex = ents[len(ents)-1].Index
 	} else {
 		log.Printf("Sending nil to commitC: %v", rc.commitC)
-		rc.commitC <- nil
+		// rc.commitC <- nil
 	}
 
 	log.Printf("replaying w of member %v", w)

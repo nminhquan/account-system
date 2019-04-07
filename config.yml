@@ -1,0 +1,7 @@
+ROCKSDB_DIR: ./test/test_db
+RAFT_LOG_DIR: ./log
+TC_SERVICE_HOST: localhost:9008
+LOCK_SERVICE_HOST: localhost:9009
+TC_NODE_SERVICE_HOST: localhost:8008
+RM_NODE_SERVICE_HOST: localhost:8009
+REDIS_HOST: localhost

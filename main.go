@@ -2,12 +2,20 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
-	"mas/consensus"
-	"mas/db"
-	"mas/model"
-	rm "mas/resource_manager"
-	"mas/transaction"
+	"strconv"
+
+	"gitlab.zalopay.vn/quannm4/mas/node"
+	"go.etcd.io/etcd/raft/raftpb"
+
+	"gitlab.zalopay.vn/quannm4/mas/client"
+	"gitlab.zalopay.vn/quannm4/mas/config"
+	"gitlab.zalopay.vn/quannm4/mas/consensus"
+	"gitlab.zalopay.vn/quannm4/mas/db"
+	rm "gitlab.zalopay.vn/quannm4/mas/resource_manager"
+	"gitlab.zalopay.vn/quannm4/mas/transaction"
+	"gitlab.zalopay.vn/quannm4/mas/utils"
 )
 
 func makeConfig() consensus.RaftClusterConfig {
@@ -15,12 +23,13 @@ func makeConfig() consensus.RaftClusterConfig {
 	cluster := flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
 	clusterid := flag.Int("clusterid", 1, "node ID")
 	id := flag.Int("id", 1, "node ID")
-	rpcPort := flag.String("port", ":9121", "rpc Port")
+	rmPort := flag.String("rmport", ":9121", "rm Port")
+	raftPort := flag.String("raftport", ":9122", "raft Port")
 	join := flag.Bool("join", false, "join an existing cluster")
 	dbName := flag.String("db", "mas", "db Name")
 	flag.Parse()
 
-	clusterConfig := consensus.RaftClusterConfig{cluster, id, rpcPort, join, dbName, clusterid, mode}
+	clusterConfig := consensus.RaftClusterConfig{cluster, id, raftPort, rmPort, join, dbName, clusterid, mode}
 	return clusterConfig
 }
 
@@ -28,22 +37,38 @@ func makeConfig() consensus.RaftClusterConfig {
 // RPC port of RM will be called from Coordinator to write data to the raftgroup
 func main() {
 	clusterConfig := makeConfig()
+	config.LoadConfigFile("config", ".")
+	log.Println(config.ToString())
 	if *clusterConfig.Mode == "tc" {
 		log.Println("Running server mode")
-		go transaction.CreateTCServer(model.TC_SERVICE_HOST).Start()
-		go transaction.CreateLockServer(model.LOCK_SERVICE_HOST).Start()
+		go node.CreateTCNodeManagerServer(config.TCNodeServHost).Start()
+		go transaction.CreateTCServer(config.TCServHost).Start()
+		go transaction.CreateLockServer(config.LockServHost).Start()
 		stopC := make(chan string)
 		stopC <- "block"
 	} else {
+		clusterID := strconv.Itoa(*clusterConfig.IdCluster)
+		nodeID := strconv.Itoa(*clusterConfig.Id)
+		hostIP := utils.GetHostIPv4()
+		rmAddress := hostIP + *clusterConfig.RMPort
+		raftAddress := hostIP + *clusterConfig.RaftPort
+		nodeClient := client.CreateNodeClient(config.TCNodeServHost, "")
+		ok := nodeClient.RegisterNodeToCluster(clusterID, nodeID, rmAddress, raftAddress, *clusterConfig.Join)
+
+		if !ok {
+			log.Fatalln("Cannot register new node to raft")
+		}
+
 		clusterInfo := consensus.RaftInit(clusterConfig)
-		log.Println("Raft node createddddddd=================================")
+		log.Println("Raft node created=================================")
 
-		accountDB := db.CreateAccountDB("localhost", "root", "123456", *clusterConfig.DBName)
-
-		var accountService rm.AccountService = rm.NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
-		startServer(accountService, clusterConfig.RPCPort)
-		log.Println("Raft node SLEEPING=================================")
-
+		accountDB, err := db.NewRocksDB(fmt.Sprintf("%v/%v", config.RocksDBDir, *clusterConfig.DBName))
+		if err != nil {
+			log.Fatalln("Cannot create account db, ", err)
+		}
+		var accountService rm.AccountService = rm.NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC, clusterInfo.Node)
+		StartServer(accountService, clusterConfig.RMPort, clusterInfo.ConfChangeC)
+		log.Println("Raft node is running=================================")
 		stopC := make(chan string)
 		stopC <- "block"
 
@@ -53,8 +78,8 @@ func main() {
 
 }
 
-func startServer(service rm.AccountService, rpcPort *string) {
-	resourceManager := rm.CreateResourceManager(service, *rpcPort)
+func StartServer(service rm.AccountService, rpcPort *string, confChangeC chan<- raftpb.ConfChange) {
+	resourceManager := rm.CreateResourceManager(service, *rpcPort, confChangeC)
 	go func() {
 		log.Printf("Starting RPC Server: %v \n", *rpcPort)
 		resourceManager.StartRPCServer()

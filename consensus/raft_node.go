@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"gitlab.zalopay.vn/quannm4/mas/config"
 	"context"
 	"fmt"
 	"log"
@@ -21,7 +22,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// A key-value stream backed by raft
+// RaftNode A key-value stream backed by raft
 type RaftNode struct {
 	proposeC    <-chan string            // proposed messages (k,v)
 	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
@@ -68,8 +69,8 @@ func NewRaftNode(id int, idCluster int, peers []string, join bool, proposeC <-ch
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("log/raftexample%d-%d", idCluster, id),
-		snapdir:     fmt.Sprintf("log/raftexample%d-%d-snap", idCluster, id),
+		waldir:      fmt.Sprintf("%v/raftexample%d-%d", config.RaftLogDir, idCluster, id),
+		snapdir:     fmt.Sprintf("%v/raftexample%d-%d-snap", config.RaftLogDir, idCluster, id),
 		// TODO: getSnapshot: getSnapshot,
 		snapCount: 1000000,
 		stopc:     make(chan struct{}),
@@ -160,7 +161,7 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 			s := string(ents[i].Data)
 			select {
 			case rc.commitC <- &s:
-				log.Printf("publishEntries: Sent data to commitC")
+				log.Printf("publishEntries: Sent data to commitC, with raft role = " + rc.node.Status().RaftState.String())
 			case <-rc.stopc:
 				return false
 			}
@@ -172,6 +173,7 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 			rc.confState = *rc.node.ApplyConfChange(cc)
 			switch cc.Type {
 			case raftpb.ConfChangeAddNode:
+				log.Println("publishEntries: COnfigchange Addnode ", cc.NodeID)
 				if len(cc.Context) > 0 {
 					rc.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
 				}
@@ -226,7 +228,7 @@ func (rc *RaftNode) sendProposal() {
 					log.Println("confChangeC is closed")
 					rc.confChangeC = nil
 				} else {
-					log.Printf("Sending confgChange proposal: %v", cc)
+					log.Printf("Sending confgChange proposal: %v", cc.String())
 					confChangeCount++
 					cc.ID = confChangeCount
 					rc.node.ProposeConfChange(context.TODO(), cc)

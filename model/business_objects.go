@@ -1,5 +1,9 @@
 package model
 
+import (
+	"go.etcd.io/etcd/raft"
+)
+
 type Instruction struct {
 	Type string // Createaccount/createpayment
 	Data interface{}
@@ -10,6 +14,11 @@ type TCTransactionEntry struct {
 	ts            int
 	state         string
 	parent_txn_id string
+}
+
+type RaftData struct {
+	EntryData []byte
+	Role      raft.StateType
 }
 
 type AccountInfo struct {

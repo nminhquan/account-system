@@ -10,7 +10,8 @@ import (
 type RaftClusterConfig struct {
 	Cluster   *string
 	Id        *int
-	RPCPort   *string
+	RaftPort  *string
+	RMPort    *string
 	Join      *bool
 	DBName    *string
 	IdCluster *int

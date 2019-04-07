@@ -2,7 +2,7 @@
 // Source: transaction/transaction.go
 
 // Package mock_transaction is a generated GoMock package.
-package mytest_mock
+package mock_transaction
 
 import (
 	reflect "reflect"

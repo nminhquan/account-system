@@ -1,13 +1,14 @@
-package mytest
+package mas_test
 
 import (
 	"bytes"
 	"encoding/json"
 	"log"
-	"mas/model"
-	"mas/utils"
 	"reflect"
 	"testing"
+
+	"gitlab.zalopay.vn/quannm4/mas/model"
+	"gitlab.zalopay.vn/quannm4/mas/utils"
 )
 
 func TestMarshallingToJSON(t *testing.T) {

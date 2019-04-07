@@ -2,11 +2,16 @@ package resource_manager
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"mas/model"
-	pb "mas/proto"
-	"mas/utils"
 	"net"
+	"strconv"
+
+	"go.etcd.io/etcd/raft/raftpb"
+
+	"gitlab.zalopay.vn/quannm4/mas/model"
+	pb "gitlab.zalopay.vn/quannm4/mas/proto"
+	"gitlab.zalopay.vn/quannm4/mas/utils"
 
 	"google.golang.org/grpc"
 )
@@ -14,14 +19,15 @@ import (
 // ResourceManager (RM) contains RPCServer for receiving requests from Coordinator
 // and Account service for processing with Raft
 type ResourceManager struct {
-	accService AccountService
-	port       string
+	accService  AccountService
+	port        string
+	confChangeC chan<- raftpb.ConfChange
 }
 
-func CreateResourceManager(accountService AccountService, port string) *ResourceManager {
+func CreateResourceManager(accountService AccountService, port string, confChangeC chan<- raftpb.ConfChange) *ResourceManager {
 	go accountService.Start()
 	log.Println("ACCOUNTSERVICE created and started")
-	return &ResourceManager{accountService, port}
+	return &ResourceManager{accountService, port, confChangeC}
 }
 
 func (server *ResourceManager) StartRPCServer() {
@@ -41,9 +47,11 @@ func (server *ResourceManager) StartRPCServer() {
 func (server *ResourceManager) ProcessPhase1(ctx context.Context, in *pb.TXRequest) (*pb.TXReply, error) {
 	ins := utils.DeserializeMessage(in.Data)
 	log.Println("[ProcessPhase1] Decoded instruction = ", ins)
-
 	var message string
 	switch ins.Type {
+	case model.INS_TYPE_QUERY_ACCOUNT:
+		data := ins.Data.(model.AccountInfo)
+		message = fmt.Sprintf("%v", *server.accService.GetAccount(data.Number))
 	case model.INS_TYPE_CREATE_ACCOUNT:
 		data := ins.Data.(model.AccountInfo)
 		message = server.accService.CreateAccount(data.Number, data.Balance)
@@ -84,4 +92,16 @@ func (server *ResourceManager) ReverseSnapshot(ins model.Instruction) string {
 	data := ins.Data.(model.AccountInfo)
 	message := server.accService.CreateAccount(data.Number, data.Balance)
 	return message
+}
+
+func (rm *ResourceManager) ProposeAddNode(ctx context.Context, in *pb.NodeRequest) (*pb.NodeReturn, error) {
+	log.Println("[RMNodeManager] Register AddNode for ", in.NodeId, " ", in.RaftNodeAddr)
+	nodeId, _ := strconv.Atoi(in.NodeId)
+	cc := raftpb.ConfChange{
+		Type:    raftpb.ConfChangeAddNode,
+		NodeID:  uint64(nodeId),
+		Context: []byte("http://" + in.RaftNodeAddr), // http://172.24.20.67:42379
+	}
+	rm.confChangeC <- cc
+	return &pb.NodeReturn{Message: model.RPC_MESSAGE_OK}, nil
 }

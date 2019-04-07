@@ -1,14 +1,14 @@
 package resource_manager
 
 import (
+	"gitlab.zalopay.vn/quannm4/mas/consensus"
 	"bytes"
 	"encoding/gob"
 	"log"
-	"mas/client"
-	"mas/dao"
-	"mas/db"
-	"mas/model"
-	"mas/utils"
+	"gitlab.zalopay.vn/quannm4/mas/dao"
+	"gitlab.zalopay.vn/quannm4/mas/db"
+	"gitlab.zalopay.vn/quannm4/mas/model"
+	"gitlab.zalopay.vn/quannm4/mas/utils"
 	"sync"
 	"time"
 
@@ -22,6 +22,7 @@ type ConsensusService interface {
 
 type AccountService interface {
 	Start()
+	GetAccount(string) *model.AccountInfo
 	CreateAccount(string, float64) string
 	ProcessSendPayment(string, string, float64) string
 	ProcessReceivePayment(string, string, float64) string
@@ -31,7 +32,6 @@ type AccountService interface {
 }
 
 type AccountServiceImpl struct {
-	accDb       *db.AccountDB
 	commitC     <-chan *string
 	proposeC    chan<- string
 	mu          sync.RWMutex
@@ -39,7 +39,8 @@ type AccountServiceImpl struct {
 	resultC     chan string
 	errorC      <-chan error
 	accDAO      dao.AccountDAO
-	pmtDAO      dao.PaymentDAO
+	// pmtDAO      dao.PaymentDAO
+	raftNode    *consensus.RaftNode
 }
 
 func (accServ *AccountServiceImpl) Start() {
@@ -50,16 +51,18 @@ func (accServ *AccountServiceImpl) Start() {
 	go accServ.ReadCommits(accServ.commitC, accServ.errorC)
 }
 
-func NewAccountService(accDb *db.AccountDB, commitC <-chan *string, proposeC chan<- string, snapshotter *snap.Snapshotter, errorC <-chan error) *AccountServiceImpl {
+func NewAccountService(accDb *db.RocksDB, commitC <-chan *string, proposeC chan<- string, snapshotter *snap.Snapshotter, errorC <-chan error, raftNode *consensus.RaftNode) *AccountServiceImpl {
 	resultC := make(chan string)
 	var accDAO dao.AccountDAO = dao.NewAccountDAO(accDb)
-	log.Printf("accDAO = %p", accDAO)
-	var pmtDAO dao.PaymentDAO = dao.NewPaymentDAO(accDb)
-	return &AccountServiceImpl{accDb: accDb, commitC: commitC, proposeC: proposeC, snapshotter: snapshotter, resultC: resultC, errorC: errorC, accDAO: accDAO, pmtDAO: pmtDAO}
+	// var pmtDAO dao.PaymentDAO = dao.NewPaymentDAO(accDb)
+	return &AccountServiceImpl{commitC: commitC, proposeC: proposeC, snapshotter: snapshotter, resultC: resultC, errorC: errorC, accDAO: accDAO, raftNode: raftNode}
+}
+func (accServ *AccountServiceImpl) GetAccount(accountNumber string) *model.AccountInfo {
+	acc, _ := accServ.accDAO.GetAccount(accountNumber)
+	return acc
 }
 
 func (accServ *AccountServiceImpl) CreateAccount(accountNumber string, balance float64) string {
-	// currentT := time.Now().Format(time.RFC850)
 	accInfo := model.AccountInfo{
 		Id:      utils.NewSHAHash(accountNumber),
 		Number:  accountNumber,
@@ -85,9 +88,8 @@ func (accServ *AccountServiceImpl) CreateAccount(accountNumber string, balance f
 
 func (accServ *AccountServiceImpl) ProcessSendPayment(fromAcc string, toAcc string, amount float64) string {
 	// check From balance
-	log.Println("ProcessPayment")
-	fromaccInfo := accServ.getAccount(fromAcc)
-	log.Println("ProcessPayment, fromAcc: ", fromaccInfo)
+	log.Println("ProcessSendPayment")
+	fromaccInfo, _ := accServ.getAccount(fromAcc)
 	if fromaccInfo.Balance < amount {
 		log.Println("not enough balance")
 		return model.RPC_MESSAGE_FAIL
@@ -105,7 +107,7 @@ func (accServ *AccountServiceImpl) ProcessSendPayment(fromAcc string, toAcc stri
 	}
 	accServ.Propose(ins)
 
-	log.Printf("Waiting for result message")
+	log.Printf("ProcessSendPayment: Waiting for result message")
 	var returnMessage string
 	select {
 	case rs := <-accServ.resultC:
@@ -117,6 +119,7 @@ func (accServ *AccountServiceImpl) ProcessSendPayment(fromAcc string, toAcc stri
 }
 
 func (accServ *AccountServiceImpl) ProcessReceivePayment(fromAcc string, toAcc string, amount float64) string {
+	log.Println("ProcessReceivePayment")
 	currentT := time.Now().Format(time.RFC850)
 	pmInfo := model.PaymentInfo{
 		Id:     utils.NewSHAHash(fromAcc, toAcc, currentT),
@@ -164,13 +167,12 @@ func (accServ *AccountServiceImpl) ProcessRollbackPayment(accountNum string, amo
 	return returnMessage
 }
 
-func (accServ *AccountServiceImpl) getAccount(accountNumber string) *model.AccountInfo {
-	log.Printf("accServ.accDAO = %p", accServ.accDAO)
-	accInfo := accServ.accDAO.GetAccount(accountNumber)
-	return accInfo
+func (accServ *AccountServiceImpl) getAccount(accountNumber string) (*model.AccountInfo, error) {
+	accInfo, err := accServ.accDAO.GetAccount(accountNumber)
+	return accInfo, err
 }
 
-//Account service as one part inside the Resource manager will manage data of its raft group, propose to its local raft node channel
+// Account service as one part inside the Resource manager will manage data of its raft group, propose to its local raft node channel
 // Change then will be redirected to the leader of the node and replicated to other nodes
 func (accServ *AccountServiceImpl) Propose(data interface{}) {
 	log.Println("Propose data to raft ", data)
@@ -232,35 +234,46 @@ func (accServ *AccountServiceImpl) ApplyInstructionToStateMachine(ins model.Inst
 	switch ins.Type {
 	case model.INS_TYPE_CREATE_ACCOUNT:
 		accInfo := ins.Data.(model.AccountInfo)
-		status = accServ.accDAO.CreateAccount(accInfo)
+		status, _ = accServ.accDAO.CreateAccount(accInfo)
 
 	case model.INS_TYPE_SEND_PAYMENT:
 		pmInfo := ins.Data.(model.PaymentInfo)
-		client := client.CreateLockClient(model.LOCK_SERVICE_HOST, pmInfo.From)
-		lockStatus := client.CreateLockRequest()
-		if lockStatus {
-			status = accServ.accDAO.UpdateAccountBalance(pmInfo.From, (-1)*pmInfo.Amount)
-		} else {
-			log.Println("cannot get lock, lock timeout")
-			status = false
-		}
-		// lockStatus = client.CreateReleaseRequest()
+		// client := client.CreateLockClient(model.LOCK_SERVICE_HOST, pmInfo.From)
+		raftState := accServ.raftNode.Node().Status().RaftState
+		log.Println("[ApplyInstructionToStateMachine] raftState = ", raftState.String())
+		// if raftState == raft.StateLeader {
+		// 	lockStatus := client.CreateLockRequest()
+		// 	if lockStatus {
+				status, _ = accServ.accDAO.UpdateAccountBalance(pmInfo.From, (-1)*pmInfo.Amount)
+			// } else {
+			// 	log.Println("cannot get lock, lock timeout")
+			// 	status = false
+			// }
+		// } else {
+		// 	status, _ = accServ.accDAO.UpdateAccountBalance(pmInfo.From, (-1)*pmInfo.Amount)
+		// }
 
 	case model.INS_TYPE_RECEIVE_PAYMENT:
 		pmInfo := ins.Data.(model.PaymentInfo)
-		client := client.CreateLockClient(model.LOCK_SERVICE_HOST, pmInfo.To)
-		lockStatus := client.CreateLockRequest()
-		if lockStatus {
-			status = accServ.accDAO.UpdateAccountBalance(pmInfo.To, pmInfo.Amount)
-		} else {
-			log.Println("cannot get lock, lock timeout")
-			status = false
-		}
-		// lockStatus = client.CreateReleaseRequest()
+		// client := client.CreateLockClient(model.LOCK_SERVICE_HOST, pmInfo.To)
+		raftState := accServ.raftNode.Node().Status().RaftState
+		log.Println("[ApplyInstructionToStateMachine] raftState = ", raftState.String())
+		// if raftState == raft.StateLeader {
+		// 	lockStatus := client.CreateLockRequest()
+		// 	if lockStatus {
+				status, _ = accServ.accDAO.UpdateAccountBalance(pmInfo.To, pmInfo.Amount)
+			// } else {
+			// 	log.Println("cannot get lock, lock timeout")
+			// 	status = false
+			// }
+		// } else {
+		// 	status, _ = accServ.accDAO.UpdateAccountBalance(pmInfo.To, pmInfo.Amount)
+		// }
+		
 
 	case model.INS_TYPE_ROLLBACK:
 		pmInfo := ins.Data.(model.PaymentInfo)
-		status = accServ.accDAO.UpdateAccountBalance(pmInfo.From, pmInfo.Amount)
+		status, _ = accServ.accDAO.UpdateAccountBalance(pmInfo.From, pmInfo.Amount)
 
 	default:
 		return false
@@ -276,14 +289,6 @@ func (accServ *AccountServiceImpl) ApplyInstructionToStateMachine(ins model.Inst
 // }
 
 func (s *AccountServiceImpl) recoverFromSnapshot(snapshot []byte) error {
-	// var store map[string]string
-	// if err := json.Unmarshal(snapshot, &store); err != nil {
-	// 	return err
-	// }
-	// s.mu.Lock()
-	// defer s.mu.Unlock()
-	// s.kvStore = store
-	// return nil
 	panic("recoverFromSnapshot is not yet impl")
 }
 

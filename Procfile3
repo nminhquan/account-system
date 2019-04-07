@@ -1,0 +1,13 @@
+# Start 3 Single-node cluster
+
+raftgroup1.1: go run main.go --mode rm --clusterid 1 --id 1 --cluster http://127.0.0.1:10001,http://127.0.0.1:10002 --rmport :10011 --db mas1
+raftgroup1.2: go run main.go --mode rm --clusterid 1 --id 2 --cluster http://127.0.0.1:10001,http://127.0.0.1:10002 --rmport :10012 --db mas2
+
+raftgroup2.1: go run main.go --mode rm --clusterid 2 --id 1 --cluster http://127.0.0.1:20001,http://127.0.0.1:20002 --rmport :20011 --db mas3
+raftgroup2.2: go run main.go --mode rm --clusterid 2 --id 2 --cluster http://127.0.0.1:20001,http://127.0.0.1:20002 --rmport :20012 --db mas4
+
+raftgroup3.1: go run main.go --mode rm --clusterid 3 --id 1 --cluster http://127.0.0.1:30001,http://127.0.0.1:30002 --rmport :30011 --db mas5
+raftgroup3.2: go run main.go --mode rm --clusterid 3 --id 2 --cluster http://127.0.0.1:30001,http://127.0.0.1:30002 --rmport :30012 --db mas6
+
+raftgroup4.1: go run main.go --mode rm --clusterid 4 --id 1 --cluster http://127.0.0.1:40001,http://127.0.0.1:40002 --rmport :40011 --db mas7
+raftgroup4.2: go run main.go --mode rm --clusterid 4 --id 2 --cluster http://127.0.0.1:40001,http://127.0.0.1:40002 --rmport :40012 --db mas8

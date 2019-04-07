@@ -2,11 +2,12 @@
 // Source: dao/account_dao.go
 
 // Package mock_dao is a generated GoMock package.
-package mytest_mock
+package mock_dao
 
 import (
-	model "mas/model"
 	reflect "reflect"
+
+	model "gitlab.zalopay.vn/quannm4/mas/model"
 
 	gomock "github.com/golang/mock/gomock"
 )

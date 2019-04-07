@@ -2,13 +2,13 @@
 // Source: client/rm_client.go
 
 // Package mock_client is a generated GoMock package.
-package mytest_mock
+package mock_client
 
 import (
-	model "mas/model"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	model "gitlab.zalopay.vn/quannm4/mas/model"
 )
 
 // MockClient is a mock of Client interface
@@ -63,15 +63,15 @@ func (mr *MockClientMockRecorder) CreatePhase2CommitRequest(instruction interfac
 }
 
 // CreatePhase2RollbackRequest mocks base method
-func (m *MockClient) CreatePhase2RollbackRequest(instruction model.Instruction) bool {
+func (m *MockClient) CreatePhase2RollbackRequest(data model.Instruction) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreatePhase2RollbackRequest", instruction)
+	ret := m.ctrl.Call(m, "CreatePhase2RollbackRequest", data)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // CreatePhase2RollbackRequest indicates an expected call of CreatePhase2RollbackRequest
-func (mr *MockClientMockRecorder) CreatePhase2RollbackRequest(instruction interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) CreatePhase2RollbackRequest(data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreatePhase2RollbackRequest", reflect.TypeOf((*MockClient)(nil).CreatePhase2RollbackRequest), instruction)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreatePhase2RollbackRequest", reflect.TypeOf((*MockClient)(nil).CreatePhase2RollbackRequest), data)
 }

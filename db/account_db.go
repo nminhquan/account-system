@@ -3,9 +3,10 @@ package db
 import (
 	"fmt"
 	"log"
-	. "mas/model"
-	"mas/utils"
 	"time"
+
+	. "gitlab.zalopay.vn/quannm4/mas/model"
+	"gitlab.zalopay.vn/quannm4/mas/utils"
 )
 
 type AccountDB struct {
@@ -80,4 +81,15 @@ func (accDB *AccountDB) GetAccountInfoFromDB(accountNumber string) *AccountInfo 
 		log.Printf("Cannot get account")
 	}
 	return &accountInfo
+}
+
+func (accDB *AccountDB) UpdateAccountBalance(accountNumber string, amount float64) bool {
+	db := accDB.DB()
+
+	_, err := db.Query("UPDATE account SET account_balance = account_balance + ? WHERE account_number = ?", amount, accountNumber)
+	if err != nil {
+		log.Println("[AccountDAO] UpdateAccountBalance Error: ", err)
+		return false
+	}
+	return true
 }

@@ -44,11 +44,17 @@ Some abbreviations used in this document:
 		- [Trường hợp rollback](#tr%C6%B0%E1%BB%9Dng-h%E1%BB%A3p-rollback)
 	- [Read Locking](#read-locking)
 		- [Read-Uncommitted](#read-uncommitted)
-- [5. JWT Authentication](#5-jwt-authentication)
+- [5. API Authentication](#5-api-authentication)
+	- [5.1 TLS](#51-tls)
+	- [5.2 JWT](#52-jwt)
+	- [5.3 Enable TLS and JWT in Server](#53-enable-tls-and-jwt-in-server)
+	- [5.4 Make a request to TC](#54-make-a-request-to-tc)
 	- [Các vấn đề chưa, sẽ giải quyết](#c%C3%A1c-v%E1%BA%A5n-%C4%91%E1%BB%81-ch%C6%B0a-s%E1%BA%BD-gi%E1%BA%A3i-quy%E1%BA%BFt)
+	- [Known issues:](#known-issues)
 	- [Tài liệu tham khảo:](#t%C3%A0i-li%E1%BB%87u-tham-kh%E1%BA%A3o)
 	- [Appendix A: Raft cluster configuration](#appendix-a-raft-cluster-configuration)
 	- [Appendix B: TODO: Redistribute (rebalance) Data khi add node](#appendix-b-todo-redistribute-rebalance-data-khi-add-node)
+	- [Install RocksDB on MacOS](#install-rocksdb-on-macos)
   
 # 1. Distributed systems
 Given the distributed system, where each service has its own Database system, the problem is to make sure the ACID (Atomicity, Consistency, Isolation, Durability) of a transaction between data among the cluster nodes.
@@ -72,10 +78,10 @@ In `Mini Account System`, we will call each raft-group is a bucket which will st
 # 2. Data structutre
 Take a example of 3-node cluster. Each node will have 2 buckets work as a bucket for holding a different range or part of data of table `account`, each bucket is a raft-node.
 
-| Node 1       	| Node 2     | Node 3     |
-| :------------- | :----------: | -----------: |
-|  **bucket_1** | bucket_2  | bucket_3'    |
-| bucket_3   | *bucket_1'* | bucket_2' |
+| Node 1       |   Node 2    |    Node 3 |
+| :----------- | :---------: | --------: |
+| **bucket_1** |  bucket_2   | bucket_3' |
+| bucket_3     | *bucket_1'* | bucket_2' |
 
 Example:
 - Each bucket_* is a Raft-node.
@@ -87,11 +93,11 @@ bucket_id := max_id % (num_of_buckets)
 ```
 We also store the information of the bucket_id and the corresponding peers in Redis:
 
-| bucket_id       	| peers    |
-| :------------- | :----------: |
-|  1 | 127.0.0.1:50041,127.0.0.1:50042  |
-|  2  | 127.0.0.1:50051,127.0.0.1:50052 |
-|  3  | 127.0.0.1:50061,127.0.0.1:50062 |
+| bucket_id |              peers              |
+| :-------- | :-----------------------------: |
+| 1         | 127.0.0.1:50041,127.0.0.1:50042 |
+| 2         | 127.0.0.1:50051,127.0.0.1:50052 |
+| 3         | 127.0.0.1:50061,127.0.0.1:50062 |
 For example in the picture:
 ```plantuml
 @startuml
@@ -122,11 +128,11 @@ C1 .. C3: replicated
 
 We also have a data structure to keep track which data belong to which buckets, this is stored in Redis:
 
-| account_id       	| buckets    |
-| :------------- | :----------: |
-|  1 | 127.0.0.1:50051   |
-|  2  | 127.0.0.1:50041 |
-| ... | ... |
+| account_id |     buckets     |
+| :--------- | :-------------: |
+| 1          | 127.0.0.1:50051 |
+| 2          | 127.0.0.1:50041 |
+| ...        |       ...       |
 
 So that when a transaction begins, the transaction client will know which peer bucket to talk with based on the `account_id`.
 # 3. Transaction
@@ -630,7 +636,24 @@ subTXN_1 -> subTXN_1: Update A = 1000
 @enduml
 ```
 
-# 5. JWT Authentication
+# 5. API Authentication
+Go requires gRPC to have TLS (Transport Layer Security or SSL) to be enabled first before using JWT credentials.
+
+## 5.1 TLS
+To enable TLS we first need to create a self-signed SSL certificate. 
+
+1. Create private key
+
+	```
+	$ openssl genrsa -out cert/server.key 2048
+	```
+2. Create and sign certificate for `localhost`:
+   
+   ```
+	 $ openssl req -new -x509 -sha256 -key cert/server.key -out cert/server.crt -days 3650 -subj '/CN=localhost'
+	 ```
+
+## 5.2 JWT
 Get the library by running this command:
 ```
 go get github.com/dgrijalva/jwt-go
@@ -643,25 +666,75 @@ echo {\"foo\":\"bar\"} | jwt -key ./secret_key -alg HS256 -sign - | jwt -key ./s
 
 For simple, we use `HS256` with symetric `secret_key`, for both sign and verify, but we can use another asymetric public/private key pair using `RSA` or `ECDSA`.
 
-First, we will sign the information using the above command, output is stored in the `token.jwt` file:
-
-```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIifQ.X0-Uu2UO7r_l4HiOS06V4Xs_VTTDabZxRAYRVRHLEJA
-```
+First, we will sign the information using the above command, output is stored in the `token.jwt` file.
 
 On client side, when client sends a request to server, it will get the token file above:
 ```
-jwtCreds, err := jwt.NewFromTokenFile(*token)
+token, err := credentials.NewTokenFromFile(client.apiToken)
+```
+and the server certificate that was created in [5.1](#51-tls):
+```
+creds, err := grpc_creds.NewClientTLSFromFile(client.apiCert, "")
 ```
 and includes in the credentials in the header:
 ```
-conn, err := grpc.Dial(*serverAddr,
-		grpc.WithPerRPCCredentials(jwtCreds))
+conn, err := grpc.Dial(client.serverAddress,
+		grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(token))
 ```
 
-On server side, when received the request, service will first call `ValidateToken` to validate the token using the same `secret_key`.
+## 5.3 Enable TLS and JWT in Server
+On server side, first we need to includ the server certificate and its private key.
+
+```
+creds, err := grpc_creds.NewServerTLSFromFile(credentials.SSL_SERVER_CERT, credentials.SSL_SERVER_PRIVATE_KEY)
+if err != nil {
+	log.Fatalf("Cannot get credentials: %v", err)
+}
+
+s := grpc.NewServer(grpc.UnaryInterceptor(credentials.JWTServerInterceptor), grpc.Creds(creds))
+```
+We also define a interceptor `JWTServerInterceptor` to validate the token.
 
 Right now, for simple we just validate the token at the TC Server where it handles requests from client.
+
+## 5.4 Make a request to TC
+Install the `mas_client` cmd:
+```
+$ go install mas_client/mas_client.go
+```
+Usage of `mas_client`:
+```
+$ mas_client --help
+Usage of mas_client:
+  -amount float
+    	Amount of money for Payment
+  -balance float
+    	Account balance
+  -cert string
+    	Path to Server certificate (default "./credentials/cert/server.crt")
+  -createAcc
+    	createAcc/createPmt
+  -createPmt
+    	createAcc/createPmt
+  -from string
+    	From Account number of Payment
+  -number string
+    	Account number
+  -tc string
+    	TC_SERVICE_HOST (default "localhost:9008")
+  -to string
+    	To Account number of Payment
+  -token string
+    	Path to JWT token file (default "./credentials/token.jwt")
+```
+
+We can make request to TC using the given token and TSL certificate:
+```
+$  mas_client --createAcc --number "abc"\
+> --token "/path/to/token.jwt"\
+>  --cert "/path/to/server.crt"
+```
 
 ## Các vấn đề chưa, sẽ giải quyết
 - Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.
@@ -670,7 +743,14 @@ Right now, for simple we just validate the token at the TC Server where it handl
 - Account Service cần được thực hiện async, tức là trả về kết quả phase 1 ngay khi propose xong, không đợi đến bước apply change to state machine. Sau đó TC gửi request Commit, thì Account Service mới bắt đầu xin global lock và commit. Tương tự với trường hợp Rollback.
 - Cần phải lưu UNDO log dữ liệu snapshot before change và after change của row trước và sau khi commit.
 - Hiện tại chưa hỗ trợ việc undo, redo log khi TC mất điện. Có nghĩa là chỉ hỗ trợ undo nếu có 1 giao dịch fail, TC vẫn hoạt động bình thường, nếu như TC chưa kịp commit giao dịch mà bị mất điện thì khi start lên lại, TC phải thực hiện crash recovery, scan log xem có giao dịch nào chưa commit thì sẽ `undo`, còn giao dịch nào đã commit nhưng chưa write xuống DB sẽ đuợc `redo`
-- Multi-raft config change rebalance data -> hiện tại chưa hỗ trợ việc redistribute lại data khi add thêm Raft-group vào Multi-raft.
+- Multi-raft config change rebalance dvata -> hiện tại chưa hỗ trợ việc redistribute lại data khi add thêm Raft-group vào Multi-raft.
+- Thay vì distribute data theo maxId, có thể dùng Nginx để làm reverse proxy và load balancer.
+- Implement hashing cho account_id.
+- Implement data layer bằng RocksDB.
+- Benchmark using Locust
+
+## Known issues:
+- Cần lock record khi đọc balance. Vì dữ liệu có thể bị thay đổi từ lúc đọc balance cho đến khi lock record.
 
 ## Tài liệu tham khảo:
 1. https://en.wikipedia.org/wiki/Isolation_(database_systems)
@@ -686,3 +766,16 @@ Right now, for simple we just validate the token at the TC Server where it handl
 Theo minh hoạ, Raft cần phải có số node là 2F + 1 (F là số node tối đa có thể fail), để đảm bảo đồng thuận luôn thành công và tránh trường hợp split-brain.
 
 ## Appendix B: TODO: Redistribute (rebalance) Data khi add node
+
+## Install RocksDB on MacOS
+- Install Homebrew sau đó chạy command:
+```
+$ brew install rocksdb
+```
+Xem trong stdout có xuất ra đường dẫn đến rocksdb, trong trường hợp này là: "/usr/local/Cellar/rocksdb/5.18.3"
+- Tiếp tục chạy command như sau:v
+```
+$ CGO_CFLAGS="-I/usr/local/Cellar/rocksdb/5.18.3/include"
+$ CGO_LDFLAGS="-L/usr/local/Cellar/rocksdb/5.18.3 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+$ go get github.com/tecbot/gorocksdb
+```

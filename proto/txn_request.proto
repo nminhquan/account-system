@@ -19,6 +19,7 @@ option java_package = "io.grpc.examples.helloworld";
 option java_outer_classname = "HelloWorldProto";
 
 package proto;
+import "node_request.proto";
 
 // The greeting service definition.
 service TransactionService {
@@ -26,6 +27,7 @@ service TransactionService {
   rpc ProcessPhase1 (TXRequest) returns (TXReply) {}
   rpc ProcessPhase2Commit (TXRequest) returns (TXReply) {}
   rpc ProcessPhase2Rollback (TXRequest) returns (TXReply) {}
+  rpc ProposeAddNode(NodeRequest) returns (NodeReturn) {}
 }
 
 // The request message containing the user's name.

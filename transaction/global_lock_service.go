@@ -3,7 +3,7 @@ package transaction
 import (
 	"context"
 	"log"
-	pb "mas/proto"
+	pb "gitlab.zalopay.vn/quannm4/mas/proto"
 	"net"
 	"sync"
 	"time"

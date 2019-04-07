@@ -1,17 +1,17 @@
-package mytest
+package mas_test
 
 import (
 	"bytes"
 	"encoding/gob"
 	"flag"
 	"log"
-	consensus "mas/consensus"
-	"mas/db"
-	"mas/model"
-	. "mas/resource_manager"
 	"os"
 	"testing"
 	"time"
+
+	consensus "gitlab.zalopay.vn/quannm4/mas/consensus"
+	"gitlab.zalopay.vn/quannm4/mas/model"
+	. "gitlab.zalopay.vn/quannm4/mas/resource_manager"
 )
 
 func makeConfig() consensus.RaftClusterConfig {
@@ -19,7 +19,7 @@ func makeConfig() consensus.RaftClusterConfig {
 	cluster := flag.String("cluster", "http://127.0.0.1:9021", "comma separated cluster peers")
 	clusterid := flag.Int("clusterid", 1, "node ID")
 	id := flag.Int("id", 1, "node ID")
-	rpcPort := flag.String("port", ":9121", "rpc Port")
+	rpcPort := flag.String("rmPort", ":9121", "rpc Port")
 	join := flag.Bool("join", false, "join an existing cluster")
 	dbName := flag.String("db", "mas", "db Name")
 	flag.Parse()
@@ -38,8 +38,7 @@ func StartRaftNode() *consensus.RaftClusterInfo {
 
 func CreateAccountService(clusterInfo *consensus.RaftClusterInfo) AccountService {
 	log.Println("Raft node created")
-	accountDB := db.CreateAccountDB("localhost", "root", "123456", "abc")
-	accountServ := NewAccountService(accountDB, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC)
+	accountServ := NewAccountService(nil, clusterInfo.CommitC, clusterInfo.ProposeC, <-clusterInfo.SnapshotterReady, clusterInfo.ErrorC, nil)
 	go accountServ.ReadCommits(clusterInfo.CommitC, clusterInfo.ErrorC)
 	return accountServ
 }

@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"log"
-	pb "mas/proto"
+	pb "gitlab.zalopay.vn/quannm4/mas/proto"
 	"time"
 
 	"google.golang.org/grpc"

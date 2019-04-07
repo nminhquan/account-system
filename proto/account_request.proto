@@ -25,6 +25,7 @@ service AccountService {
   // Sends a greeting
   rpc CreateAccount (AccountRequest) returns (AccountReply) {}
   rpc CreatePayment (PaymentRequest) returns (PaymentReply) {}
+  rpc GetAccount (AccountRequest) returns (AccountReply) {}
 }
 
 // The request message containing the user's name.

@@ -1,83 +1,63 @@
 package transaction_test
 
 import (
-	"fmt"
 	"testing"
 
-	"mas/model"
-	mytest_mock "mas/test/mock"
-	"mas/transaction"
+	"gitlab.zalopay.vn/quannm4/mas/db"
+	"gitlab.zalopay.vn/quannm4/mas/model"
+	"gitlab.zalopay.vn/quannm4/mas/test/mock/mock_client"
+	"gitlab.zalopay.vn/quannm4/mas/transaction"
 
 	"github.com/golang/mock/gomock"
-	"gotest.tools/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func TestMockBasic(t *testing.T) {
-	// use the mocked object
+const TXN_GLOBAL_TEST_ID = "TXN_GLOBAL_TEST_ID"
+const TXN_LOCAL_TEST_ID = "TXN_GLOBAL_TEST_ID"
 
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+var redisClient = db.NewCacheService("localhost", "")
 
-	mockObj := mytest_mock.NewMockClient(mockCtrl)
-	ins := model.Instruction{}
-	mockObj.EXPECT().CreatePhase1Request().Return(false)
-
-	ret := mockObj.CreatePaymentRequest("aa", "bb", 10.0)
-	fmt.Println(ret)
-	assert.Equal(t, ret, false)
+func TestLocalTXNBDD(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "local transaction test")
 }
 
-func TestMockPrepare(t *testing.T) {
-	// use the mocked object
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+var _ = Describe("Local transaction test", func() {
+	var (
+		mockCtrl *gomock.Controller
+		// mockTransaction *mytest_mock.MockTransaction
+	)
 
-	mockClientFrom := mytest_mock.NewMockClient(mockCtrl)
-	// mockClient.EXPECT().CreatePaymentRequest("aa", "bb", 10.0).Return(false)
-	mockClientTo := mytest_mock.NewMockClient(mockCtrl)
+	BeforeEach(func() {
+		mockCtrl = gomock.NewController(GinkgoT())
+		// mockTransaction = mytest_mock.NewMockTransaction(mockCtrl)
+	})
 
-	pmInfo := model.PaymentInfo{From: "aa", To: "bb", Amount: 10.0}
+	AfterEach(func() {
+		mockCtrl.Finish()
+		Expect(redisClient.Del("sub_txn:" + TXN_GLOBAL_TEST_ID + TXN_LOCAL_TEST_ID).Err()).NotTo(HaveOccurred())
+	})
 
-	instruction := model.Instruction{}
-	txnSwitchFrom := transaction.NewTxnSwitch(pmInfo.From)
-	txnSwitchTo := transaction.NewTxnSwitch(pmInfo.To)
+	Specify("Begin() should fail when CreatePhase1Request fails", func() {
+		// use the mocked object
+		mockClient := mock_client.NewMockClient(mockCtrl)
+		ins := model.Instruction{}
+		mockClient.EXPECT().CreatePhase1Request(ins).Return(false)
 
-	var localTxnFrom transaction.Transaction = transaction.NewLocalTransaction(mockClientFrom, txnSwitchFrom, instruction)
-	var localTxnTo transaction.Transaction = transaction.NewLocalTransaction(mockClientTo, txnSwitchTo, instruction)
-	txn := transaction.NewGlobalTransaction([]transaction.Transaction{localTxnFrom, localTxnTo})
-	prepared := txn.Prepare()
-	assert.Equal(t, prepared, true)
-}
+		localTxn := transaction.NewLocalTransaction(mockClient, nil, ins, TXN_LOCAL_TEST_ID, TXN_GLOBAL_TEST_ID)
+		ret := localTxn.Begin()
+		Expect(ret).To(BeFalse())
+	})
+	Specify("Begin() should succeed when CreatePhase1Request succeed", func() {
+		// use the mocked object
+		mockClient := mock_client.NewMockClient(mockCtrl)
+		ins := model.Instruction{}
+		mockClient.EXPECT().CreatePhase1Request(ins).Return(true)
 
-func TestMockBegin(t *testing.T) {
-	// use the mocked object
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+		localTxn := transaction.NewLocalTransaction(mockClient, nil, ins, TXN_LOCAL_TEST_ID, TXN_GLOBAL_TEST_ID)
+		ret := localTxn.Begin()
+		Expect(ret).To(BeTrue())
+	})
 
-	// ROLLBACK CASE
-	mockClientSender := mytest_mock.NewMockClient(mockCtrl)
-	mockClientSender.EXPECT().CreatePaymentRequest("aa", "bb", 10.0).Return(true).MaxTimes(10)
-	mockClientReceiver := mytest_mock.NewMockClient(mockCtrl)
-	mockClientReceiver.EXPECT().CreatePaymentRequest("bb", "aa", -10.0).Return(false)
-
-	pmInfo := model.PaymentInfo{From: "aa", To: "bb", Amount: 10.0}
-	txn := transaction.NewTransaction(mockClientSender, mockClientReceiver, pmInfo)
-	phase1Passed := txn.Begin()
-	fmt.Println("aaaaa : ", phase1Passed)
-	assert.Equal(t, phase1Passed, false)
-
-	if !phase1Passed {
-		fmt.Println("Rolling back")
-		txn.Rollback()
-	}
-
-	// SUCCESS CASE
-	mockClientReceiver2 := mytest_mock.NewMockClient(mockCtrl)
-	mockClientReceiver2.EXPECT().CreatePaymentRequest("bb", "aa", -10.0).Return(true)
-	txn = transaction.NewTransaction(mockClientSender, mockClientReceiver2, pmInfo)
-	fmt.Println("Committing")
-	phase1Passed = txn.Begin()
-	fmt.Println("aaaaa 111s: ", phase1Passed)
-	assert.Equal(t, phase1Passed, true)
-	txn.Commit()
-}
+})

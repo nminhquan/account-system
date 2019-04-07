@@ -1,8 +1,7 @@
 package model
 
 const (
-	TC_SERVICE_HOST          = "localhost:9008"
-	LOCK_SERVICE_HOST        = "localhost:9009"
+	INS_TYPE_QUERY_ACCOUNT   = "acc_query"
 	INS_TYPE_CREATE_ACCOUNT  = "acc_create"
 	INS_TYPE_SEND_PAYMENT    = "pm_send"
 	INS_TYPE_RECEIVE_PAYMENT = "pm_receive"

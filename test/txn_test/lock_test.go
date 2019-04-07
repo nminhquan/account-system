@@ -2,11 +2,12 @@ package transaction_test
 
 import (
 	"fmt"
-	"mas/db"
-	. "mas/transaction"
 	"sync"
 	"testing"
 	"time"
+
+	"gitlab.zalopay.vn/quannm4/mas/db"
+	. "gitlab.zalopay.vn/quannm4/mas/transaction"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,7 +18,6 @@ const testRedisKey = "__test_key__"
 func TestLockBDD(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Lock test")
-
 }
 
 var redisClient = db.NewCacheService("localhost", "")
@@ -57,9 +57,9 @@ var _ = Describe("Global lock", func() {
 	Specify("lock could not take other handle", func() {
 		subject.Lock()
 		Expect(subject.IsLocked()).To(BeTrue())
-		// Expect(subject.HasHandle()).To(BeTrue())
+		Expect(subject.HasHandle()).To(BeTrue())
 		lockCtl := NewLockController(testRedisKey, lockProperties)
-		// Expect(lockCtl.HasHandle()).To(BeFalse())
+		Expect(lockCtl.HasHandle()).To(BeFalse())
 		Expect(lockCtl.IsLocked()).To(BeTrue())
 	})
 	It("should have lock status updated", func() {
@@ -73,20 +73,40 @@ var _ = Describe("Global lock", func() {
 		Expect(lockCtl.IsLocked()).To(BeTrue())
 		Expect(err).To(BeNil())
 	})
-	It("should have error obtaining lock", func() {
+	It("should have error obtaining already-locked lock", func() {
 		subject.Lock()
 		_, err := Obtain(testRedisKey, lockProperties)
 		Expect(err).To(Equal(ErrLockNotObtained))
+	})
+	It("cannot lock the already-locked resource", func() {
+		subject.Lock()
+		lockCtl := NewLockController(testRedisKey, lockProperties)
+		stt, err := lockCtl.Lock()
+		Expect(stt).To(BeFalse())
+		Expect(err).To(Equal(ErrLockNotObtained))
+	})
+	It("will wait for the lock timeout and get the lock successfully", func() {
+		lockProperties = &LockProperties{
+			LockAttempts:     5,
+			LockAttemptDelay: time.Duration(1000 * time.Millisecond),
+			LockTimeout:      time.Duration(4000 * time.Millisecond),
+		}
+		subject = newLock()
+		subject.Lock()
+		lockCtl := NewLockController(testRedisKey, lockProperties)
+		stt, err := lockCtl.Lock()
+		Expect(stt).To(BeTrue())
+		Expect(err).To(BeNil())
 	})
 	It("cannot release other's lock", func() {
 		subject.Lock()
 		lockCtl := NewLockController(testRedisKey, lockProperties)
 		stt, err := lockCtl.Unlock()
+		Expect(stt).To(BeFalse())
+		Expect(err).To(Equal(ErrLockUnlockFailed))
 		Expect(subject.HasHandle()).To(BeTrue())
 		Expect(subject.IsLocked()).To(BeTrue())
 
-		Expect(stt).To(BeFalse())
-		Expect(err).To(Equal(ErrLockUnlockFailed))
 	})
 	It("should work correct when N go routines updates same log", func() {
 		var wg sync.WaitGroup

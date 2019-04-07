@@ -3,7 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/gob"
-	"mas/model"
+	"gitlab.zalopay.vn/quannm4/mas/model"
 )
 
 func SerializeMessage(ins model.Instruction) []byte {
