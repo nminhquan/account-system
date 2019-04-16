@@ -49,6 +49,7 @@ Some abbreviations used in this document:
 	- [5.2 JWT](#52-jwt)
 	- [5.3 Enable TLS and JWT in Server](#53-enable-tls-and-jwt-in-server)
 	- [5.4 Make a request to TC](#54-make-a-request-to-tc)
+	- [5.4 Register JWT Token for new account](#54-register-jwt-token-for-new-account)
 	- [Các vấn đề chưa, sẽ giải quyết](#c%C3%A1c-v%E1%BA%A5n-%C4%91%E1%BB%81-ch%C6%B0a-s%E1%BA%BD-gi%E1%BA%A3i-quy%E1%BA%BFt)
 	- [Known issues:](#known-issues)
 	- [Tài liệu tham khảo:](#t%C3%A0i-li%E1%BB%87u-tham-kh%E1%BA%A3o)
@@ -735,6 +736,9 @@ $  mas_client --createAcc --number "abc"\
 > --token "/path/to/token.jwt"\
 >  --cert "/path/to/server.crt"
 ```
+
+## 5.4 Register JWT Token for new account
+Each account when registered will be generated with a JWT token which contain the account info, when authenticate, if all info is correct then the transaction will begin otherwise return an authentication error.
 
 ## Các vấn đề chưa, sẽ giải quyết
 - Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.

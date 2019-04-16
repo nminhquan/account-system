@@ -4,4 +4,4 @@ TC_SERVICE_HOST: localhost:9008
 LOCK_SERVICE_HOST: localhost:9009
 TC_NODE_SERVICE_HOST: localhost:8008
 RM_NODE_SERVICE_HOST: localhost:8009
-REDIS_HOST: localhost
+REDIS_HOST: localhost:6379

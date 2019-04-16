@@ -6,15 +6,17 @@ import (
 	"log"
 	"strconv"
 
+	"gitlab.zalopay.vn/quannm4/mas/config"
 	"gitlab.zalopay.vn/quannm4/mas/node"
+	"gitlab.zalopay.vn/quannm4/mas/transaction"
 	"go.etcd.io/etcd/raft/raftpb"
 
 	"gitlab.zalopay.vn/quannm4/mas/client"
-	"gitlab.zalopay.vn/quannm4/mas/config"
+
 	"gitlab.zalopay.vn/quannm4/mas/consensus"
 	"gitlab.zalopay.vn/quannm4/mas/db"
 	rm "gitlab.zalopay.vn/quannm4/mas/resource_manager"
-	"gitlab.zalopay.vn/quannm4/mas/transaction"
+
 	"gitlab.zalopay.vn/quannm4/mas/utils"
 )
 
@@ -37,8 +39,6 @@ func makeConfig() consensus.RaftClusterConfig {
 // RPC port of RM will be called from Coordinator to write data to the raftgroup
 func main() {
 	clusterConfig := makeConfig()
-	config.LoadConfigFile("config", ".")
-	log.Println(config.ToString())
 	if *clusterConfig.Mode == "tc" {
 		log.Println("Running server mode")
 		go node.CreateTCNodeManagerServer(config.TCNodeServHost).Start()

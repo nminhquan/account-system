@@ -1,2 +1,2 @@
 # Use goreman to run `go get github.com/mattn/goreman`
-raftgroup1-4: go run main.go --mode rm --clusterid 1 --id 4 --cluster http://172.24.20.67:12379,http://172.24.20.67:22379,http://172.24.20.67:32379,http://172.24.20.67:42379 --join --raftport :42379 --rmport :50044 --db mas4
+raftgroup1-4: go run main.go --mode rm --clusterid 1 --id 2 --cluster http://172.24.20.67:12379,http://172.24.20.67:12380 --join --raftport :12380 --rmport :50042 --db mas4
