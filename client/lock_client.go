@@ -3,10 +3,9 @@ package client
 import (
 	"context"
 	"log"
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
 	"time"
 
-	"google.golang.org/grpc"
+	pb "gitlab.zalopay.vn/quannm4/mas/proto"
 )
 
 type LockClient interface {
@@ -20,9 +19,9 @@ type LockClientImpl struct {
 }
 
 func CreateLockClient(serverAddress string, resourceId string) LockClient {
-	conn, err := grpc.Dial(serverAddress, grpc.WithInsecure())
+	conn, err := grpcConnMap.Get(serverAddress)
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.Fatalf("Cannot get Connection for LockClient: %v", err)
 	}
 	c := pb.NewLockServiceClient(conn)
 
@@ -30,18 +29,16 @@ func CreateLockClient(serverAddress string, resourceId string) LockClient {
 }
 
 func (client *LockClientImpl) CreateLockRequest() bool {
-	log.Println("Creating lock request for acc: ", client.resourceId)
 	// clientDeadline := time.Now().Add(time.Duration(10000) * time.Millisecond)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	message, err := client.AcquireLock(ctx, &pb.LockRequest{LockId: client.resourceId})
 
 	if err != nil {
-		log.Printf("ccould not transfer: %v", err)
+		log.Printf("[LockClient] ccould not transfer: %v", err)
 		return false
 	}
-	log.Println("[LockClient] lock returned message: ", message)
 
 	if message.Message != "OK" {
 		return false
@@ -50,17 +47,16 @@ func (client *LockClientImpl) CreateLockRequest() bool {
 }
 
 func (client *LockClientImpl) CreateReleaseRequest() bool {
-	log.Println("Creating release request for acc: ", client.resourceId)
 	// clientDeadline := time.Now().Add(time.Duration(10000) * time.Millisecond)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	message, err := client.ReleaseLock(ctx, &pb.LockRequest{LockId: client.resourceId})
 	if err != nil {
-		log.Printf("ccould not transfer: %v", err)
+		log.Printf("[LockClient] ccould not transfer: %v", err)
 		return false
 	}
-	log.Println("[LockClient] release returned message: ", message)
+
 	if message.Message != "OK" {
 		return false
 	}

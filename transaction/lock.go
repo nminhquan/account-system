@@ -108,7 +108,6 @@ func (l *GlobalLock) IsLocked() (bool, error) {
 
 //helper func
 func (l *GlobalLock) createLock() (bool, error) {
-	log.Printf("CREATE lock %v", *l.properties)
 	attempts := l.properties.LockAttempts
 	delay := l.properties.LockAttemptDelay
 	for {
@@ -118,7 +117,6 @@ func (l *GlobalLock) createLock() (bool, error) {
 			return false, err
 		} else if ok {
 			l.lockHandle = l.lockId
-			log.Printf("[Lock] CREATED lock, handle = %v", l.lockHandle)
 			return true, nil
 		}
 		log.Println("[Lock] Attempting retries on create lock retry: ", attempts)
@@ -131,7 +129,6 @@ func (l *GlobalLock) createLock() (bool, error) {
 }
 
 func (l *GlobalLock) refreshLock() (bool, error) {
-	log.Printf("[Lock] REFRESH lock %p", l)
 	ok, err := txnDao.RefreshLock(l.lockId, l.properties.LockTimeout)
 	if err != nil {
 		return false, err
@@ -143,7 +140,6 @@ func (l *GlobalLock) refreshLock() (bool, error) {
 }
 
 func (l *GlobalLock) releaseLock() (bool, error) {
-	log.Printf("[Lock] RELEASE lock %p", l)
 	_, err := txnDao.DeleteLock(l.lockId)
 	if err != nil {
 		return false, ErrLockUnlockFailed

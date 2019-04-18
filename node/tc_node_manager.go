@@ -6,8 +6,11 @@ import (
 	"net"
 	"strings"
 
-	"gitlab.zalopay.vn/quannm4/mas/client"
+	"gitlab.zalopay.vn/quannm4/mas/transaction"
+
 	"gitlab.zalopay.vn/quannm4/mas/config"
+
+	"gitlab.zalopay.vn/quannm4/mas/client"
 	"gitlab.zalopay.vn/quannm4/mas/dao"
 	"gitlab.zalopay.vn/quannm4/mas/db"
 
@@ -21,11 +24,19 @@ import (
 
 type set map[string]bool
 
-var cacheService = db.NewCacheService(config.RedisHost, "")
-var txnDao = dao.NewTxnCoordinatorDAO(cacheService)
+var (
+	cacheService *db.CacheService
+	txnDao       dao.TxnCoordinatorDAO
+)
 
 type TCNodeManager struct {
 	port string
+}
+
+func init() {
+	log.Println("TC node mgr init")
+	cacheService = db.NewCacheService(config.RedisHost, "")
+	txnDao = dao.NewTxnCoordinatorDAO(cacheService, nil)
 }
 
 func CreateTCNodeManagerServer(port string) *TCNodeManager {
@@ -80,7 +91,7 @@ func (nm *TCNodeManager) AddNode(ctx context.Context, in *pb.NodeRequest) (*pb.N
 	if err != nil {
 		return &pb.NodeReturn{Message: model.RPC_MESSAGE_FAIL}, err
 	}
-
+	transaction.RefreshPeerList()
 	return &pb.NodeReturn{Message: model.RPC_MESSAGE_OK}, nil
 }
 

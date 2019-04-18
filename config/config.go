@@ -29,6 +29,12 @@ var (
 	RedisHost      string
 )
 
+func init() {
+	fmt.Println("Init global config")
+	LoadConfigFile("config", ".")
+	fmt.Println(ToString())
+}
+
 func LoadConfigFile(fileName string, path string) {
 	viper.SetConfigName(fileName)         // name of config file (without extension)
 	viper.AddConfigPath(path)             // path to look for the config file in
@@ -49,5 +55,6 @@ func LoadConfigFile(fileName string, path string) {
 }
 
 func ToString() string {
-	return fmt.Sprintf("RocksDBDir = %v\nRaftLogDir = %v\nTCServHost = %v\nLockServHost = %v", RocksDBDir, RaftLogDir, TCServHost, LockServHost)
+	return fmt.Sprintf("RocksDBDir = %v\nRaftLogDir = %v\nTCServHost = %v\nLockServHost = %v\nTCNodeServHost = %v\nRMNodeServHost = %v\nRedisHost = %v",
+		RocksDBDir, RaftLogDir, TCServHost, LockServHost, TCNodeServHost, RMNodeServHost, RedisHost)
 }

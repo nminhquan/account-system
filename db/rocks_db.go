@@ -12,6 +12,11 @@ var (
 	ErrRockDBKeyNotExist = errors.New("Key does not exist")
 )
 
+type KeyValDB interface {
+	Set(key interface{}, value interface{}) error
+	Get(key interface{}) (interface{}, error)
+}
+
 type RocksDB struct {
 	path  string
 	db    *gorocksdb.DB
@@ -27,6 +32,7 @@ func NewRocksDB(path string) (*RocksDB, error) {
 	opts := gorocksdb.NewDefaultOptions()
 	opts.SetBlockBasedTableFactory(bbto)
 	opts.SetCreateIfMissing(true)
+	opts.IncreaseParallelism(4)
 
 	database, err := gorocksdb.OpenDb(opts, path)
 	if err != nil {
@@ -59,4 +65,23 @@ func (rocksDB *RocksDB) GetAccountBalance(accountId string) (string, error) {
 func (rocksDB *RocksDB) SetAccountBalance(accountId string, amount float64) error {
 	err := rocksDB.db.Put(rocksDB.write, []byte(accountId), []byte(strconv.FormatFloat(amount, 'f', 6, 64)))
 	return err
+}
+
+func (rocksDB *RocksDB) Set(key string, value string) error {
+	err := rocksDB.db.Put(rocksDB.write, []byte(key), []byte(value))
+	return err
+}
+
+func (rocksDB *RocksDB) Get(key string) (string, error) {
+	data, err := rocksDB.db.Get(rocksDB.read, []byte(key))
+	return string(data.Data()), err
+}
+
+func (rocksDB *RocksDB) Del(key string) error {
+	err := rocksDB.db.Delete(rocksDB.write, []byte(key))
+	return err
+}
+
+func (rocksDB *RocksDB) DB() *gorocksdb.DB {
+	return rocksDB.db
 }

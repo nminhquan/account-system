@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"gitlab.zalopay.vn/quannm4/mas/config"
 
@@ -23,8 +23,33 @@ import (
 	grpc_creds "google.golang.org/grpc/credentials"
 )
 
-var cacheService = db.NewCacheService(config.RedisHost, "")
-var txnDao = dao.NewTxnCoordinatorDAO(cacheService)
+var (
+	txnDao dao.TxnCoordinatorDAO
+	creds  = func() grpc_creds.TransportCredentials {
+		c, err := grpc_creds.NewServerTLSFromFile(credentials.SSL_SERVER_CERT, credentials.SSL_SERVER_PRIVATE_KEY)
+		if err != nil {
+			log.Fatalf("Cannot get credentials: %v", err)
+		}
+		return c
+	}()
+	maxId    int64 = 0
+	peerList map[string]string
+	// resultBlockQueue, _ = blockingQueues.NewArrayBlockingQueue(uint64(100000000))
+)
+
+func init() {
+	log.Println("TC init")
+	cacheService := db.NewCacheService(config.RedisHost, "")
+	lockDB, _ := db.NewRocksDB(fmt.Sprintf("%v/%v", config.RocksDBDir, "meta_db"))
+	log.Println("lockDB: ", lockDB)
+	txnDao = dao.NewTxnCoordinatorDAO(cacheService, lockDB)
+	peerList = txnDao.GetPeersList()
+}
+
+func RefreshPeerList() {
+	peerList = txnDao.GetPeersList()
+	log.Println("RefreshPeerList: ", peerList)
+}
 
 type TxnCoordinator struct {
 	port string
@@ -37,54 +62,74 @@ func CreateTCServer(port string) *TxnCoordinator {
 }
 
 func (tc *TxnCoordinator) GetAccount(ctx context.Context, in *pb.AccountRequest) (*pb.AccountReply, error) {
-	// peerBucket := txnDao.GetPeerBucket(in.AccountNumber)
-	// rmClient := client.CreateRMClient(strings.Split(peerBucket, ",")[0])
-	// accInfo := &model.AccountInfo{Number: in.AccountNumber}
-	// instruction := model.Instruction{Type: model.INS_TYPE_QUERY_ACCOUNT, Data: accInfo}
-	// message := rmClient.CreateGetAccountRequest(instruction)
-	return &pb.AccountReply{Message: "message"}, nil
+	peerBucket := txnDao.GetPeerBucket(in.AccountNumber)
+	if peerBucket == "" {
+		message := fmt.Sprintln("Account doesn't exist")
+		return &pb.AccountReply{Message: message}, nil
+	}
+	rmClient := client.CreateRMClient(strings.Split(peerBucket, ","))
+
+	accInfo := &model.AccountInfo{Number: in.AccountNumber}
+	instruction := model.Instruction{Type: model.INS_TYPE_QUERY_ACCOUNT, Data: accInfo}
+	message, err := rmClient.CreateGetAccountRequest(instruction)
+
+	return &pb.AccountReply{Message: message}, err
 }
 
 func (tc *TxnCoordinator) CreateAccount(ctx context.Context, in *pb.AccountRequest) (*pb.AccountReply, error) {
-	if bucket := txnDao.GetPeerBucket(in.AccountNumber); bucket != "" {
-		message := fmt.Sprintln("FAIL: Account already exists, id = ", in.AccountNumber, " bucket = ", bucket)
-		log.Println(message)
-		return &pb.AccountReply{Message: message}, nil
-	}
 	accInfo := &model.AccountInfo{Number: in.AccountNumber, Balance: in.Balance}
-	nextId := txnDao.IncrMaxId()
-	pl := txnDao.GetPeersList()
-	log.Println("[CreateAccount] Peers: ", pl)
-	thisPeer := nextId % int64(len(pl))
-	log.Println("[CreateAccount] nextId ", nextId)
-	thisPeers := strconv.FormatInt(thisPeer+1, 10)
-	log.Println("[CreateAccount] thisPeers", pl[thisPeers])
-	peers := strings.Split(pl[thisPeers], ",")
-	log.Println("[[CreateAccount]] Selected peer: ", peers)
-	rmClient := client.CreateRMClient(peers[0])
-
+	start := time.Now()
+	peers := assignPeers()
+	elapsed := time.Since(start)
+	log.Printf("[TC] Time elapsed to CreateAccount 0: %v", float64(elapsed.Nanoseconds()/int64(time.Millisecond)))
+	start1 := time.Now()
+	rmClient := client.CreateRMClient(peers)
 	globalLock := client.CreateLockClient(config.LockServHost, accInfo.Number)
-	instruction := model.Instruction{Type: model.INS_TYPE_CREATE_ACCOUNT, Data: accInfo}
 	globalTxnId := utils.GenXid()
 	localTxnId := utils.GenXid()
+	instruction := model.Instruction{Type: model.INS_TYPE_CREATE_ACCOUNT, Data: accInfo, XID: globalTxnId}
 	var localTxn = NewLocalTransaction(rmClient, globalLock, instruction, localTxnId, globalTxnId)
 	subTxns := []Transaction{
 		localTxn,
 	}
-
-	var txn Transaction = NewGlobalTransaction(subTxns)
+	elapsed1 := time.Since(start1)
+	log.Printf("[TC %v] Time elapsed to CreateAccount 1: %v", globalTxnId, float64(elapsed1.Nanoseconds()/int64(time.Millisecond)))
+	var txn Transaction = NewGlobalTransaction(subTxns, globalTxnId)
 	var message string
-	if txn.Begin() {
-		txn.Commit()
-		err := txnDao.InsertPeerBucket(accInfo.Number, pl[thisPeers])
-		if err != nil {
-			message = model.RPC_MESSAGE_FAIL
+	start2 := time.Now()
+	if txn.Prepare() {
+		if bucket := txnDao.GetPeerBucket(in.AccountNumber); bucket != "" {
+			message := fmt.Sprintln("FAIL: Account already exists, id = ", in.AccountNumber, " bucket = ", bucket)
+			log.Println(message)
+			return &pb.AccountReply{Message: message}, nil
 		}
-		message = model.RPC_MESSAGE_OK
 	} else {
+		message = model.RPC_MESSAGE_FAIL + " Cannot Prepare() global transaction"
+		return &pb.AccountReply{Message: message}, nil
+	}
+	elapsed2 := time.Since(start2)
+	log.Printf("[TC %v] Time elapsed to CreateAccount 2: %v", globalTxnId, float64(elapsed2.Nanoseconds()/int64(time.Millisecond)))
+	start3 := time.Now()
+	if txn.Begin() {
+		elapsed3 := time.Since(start3)
+		log.Printf("[TC %v] Time elapsed to CreateAccount 3: %v", globalTxnId, float64(elapsed3.Nanoseconds()/int64(time.Millisecond)))
+		start4 := time.Now()
+		txnDao.CreateTransactionEntry(globalTxnId, utils.GetCurrentTimeInMillis(), model.TXN_STATE_COMMITTED, fmt.Sprintf("%v", accInfo.Number))
+		elapsed4 := time.Since(start4)
+		log.Printf("[TC %v] Time elapsed to CreateAccount 4: %v", globalTxnId, float64(elapsed4.Nanoseconds()/int64(time.Millisecond)))
+		start5 := time.Now()
+		txn.Commit()
+		txnDao.InsertPeerBucket(accInfo.Number, strings.Join(peers, ","))
+		message = model.RPC_MESSAGE_OK
+		elapsed5 := time.Since(start5)
+		log.Printf("[TC %v] Time elapsed to CreateAccount 5: %v", globalTxnId, float64(elapsed5.Nanoseconds()/int64(time.Millisecond)))
+
+	} else {
+		txnDao.CreateTransactionEntry(globalTxnId, utils.GetCurrentTimeInMillis(), model.TXN_STATE_ABORTED, fmt.Sprintf("%v", accInfo.Number))
 		message = model.RPC_MESSAGE_FAIL
 	}
-
+	elapsed6 := time.Since(start3)
+	log.Printf("[TC %v] Time elapsed to CreateAccount 6: %v", globalTxnId, float64(elapsed6.Nanoseconds()/int64(time.Millisecond)))
 	return &pb.AccountReply{Message: message}, nil
 }
 
@@ -98,37 +143,42 @@ func (tc *TxnCoordinator) CreatePayment(ctx context.Context, in *pb.PaymentReque
 	if !paymentValid {
 		message := "FAIL: Invalid payment information, please check again"
 		log.Println(message)
-
 		return &pb.PaymentReply{Message: message}, nil
 	}
 
-	rmClientFrom := client.CreateRMClient(strings.Split(fromPeerBucket, ",")[0])
-	rmClientTo := client.CreateRMClient(strings.Split(toPeerBucket, ",")[0])
+	rmClientFrom := client.CreateRMClient(strings.Split(fromPeerBucket, ","))
+	rmClientTo := client.CreateRMClient(strings.Split(toPeerBucket, ","))
 	log.Printf("rmClientFrom: %v, rmClientTo: %v", rmClientFrom, rmClientTo)
 	pmInfo := model.PaymentInfo{From: in.FromAccountNumber, To: in.ToAccountNumber, Amount: in.Amount}
-	instructionFrom := model.Instruction{Type: model.INS_TYPE_SEND_PAYMENT, Data: pmInfo}
-	instructionTo := model.Instruction{Type: model.INS_TYPE_RECEIVE_PAYMENT, Data: pmInfo}
 	globalLockFrom := client.CreateLockClient(config.LockServHost, pmInfo.From)
 	globalLockTo := client.CreateLockClient(config.LockServHost, pmInfo.To)
 
 	globalTxnId := utils.GenXid()
+	instructionFrom := model.Instruction{Type: model.INS_TYPE_SEND_PAYMENT, Data: pmInfo, XID: globalTxnId}
+	instructionTo := model.Instruction{Type: model.INS_TYPE_RECEIVE_PAYMENT, Data: pmInfo, XID: globalTxnId}
 	var localTxnFrom = NewLocalTransaction(rmClientFrom, globalLockFrom, instructionFrom, utils.GenXid(), globalTxnId)
 	var localTxnTo = NewLocalTransaction(rmClientTo, globalLockTo, instructionTo, utils.GenXid(), globalTxnId)
 	subTxns := []Transaction{
 		localTxnFrom,
 		localTxnTo,
 	}
-	var txn Transaction = NewGlobalTransaction(subTxns)
+	var txn Transaction = NewGlobalTransaction(subTxns, globalTxnId)
 	currentTs := utils.GetCurrentTimeInMillis()
-	txnDao.CreateTransactionEntry(globalTxnId, currentTs, model.TXN_STATE_PENDING, fmt.Sprintf("%v,%v", pmInfo.From, pmInfo.To))
 
 	var message string
+	if txn.Prepare() {
+
+	} else {
+		message = model.RPC_MESSAGE_FAIL + " Cannot Prepare() global transaction"
+		return &pb.PaymentReply{Message: message}, nil
+	}
 	if txn.Begin() {
+		log.Printf("[GlobalTXN:%v] Commit", globalTxnId)
 		txn.Commit()
 		txnDao.CreateTransactionEntry(globalTxnId, currentTs, model.TXN_STATE_COMMITTED, fmt.Sprintf("%v,%v", pmInfo.From, pmInfo.To))
 		message = model.TXN_STATE_COMMITTED
 	} else {
-		log.Println("rollback")
+		log.Printf("[GlobalTXN:%v] Rollback", globalTxnId)
 		txnDao.CreateTransactionEntry(globalTxnId, currentTs, model.TXN_STATE_ABORTED, fmt.Sprintf("%v,%v", pmInfo.From, pmInfo.To))
 		message = model.TXN_STATE_ABORTED
 		txn.Rollback()
@@ -158,10 +208,6 @@ func (tc *TxnCoordinator) Start() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	// register JWTServerInterceptor for authentication
-	creds, err := grpc_creds.NewServerTLSFromFile(credentials.SSL_SERVER_CERT, credentials.SSL_SERVER_PRIVATE_KEY)
-	if err != nil {
-		log.Fatalf("Cannot get credentials: %v", err)
-	}
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(credentials.JWTServerInterceptor), grpc.Creds(creds))
 	pb.RegisterAccountServiceServer(s, tc)
@@ -170,4 +216,8 @@ func (tc *TxnCoordinator) Start() {
 		log.Fatalf("failed to serve: %v", err)
 	}
 
+}
+
+func (tc *TxnCoordinator) TestMethod(ctx context.Context, in *pb.TestMessage) (*pb.TestMessage, error) {
+	return &pb.TestMessage{Message: "pong"}, nil
 }

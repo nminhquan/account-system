@@ -1,12 +1,15 @@
 package dao
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/db"
-	"gitlab.zalopay.vn/quannm4/mas/model"
 	"gitlab.zalopay.vn/quannm4/mas/utils"
+
+	"gitlab.zalopay.vn/quannm4/mas/db"
+
+	"gitlab.zalopay.vn/quannm4/mas/model"
 )
 
 type TxnCoordinatorDAO interface {
@@ -25,18 +28,19 @@ type TxnCoordinatorDAO interface {
 }
 
 type TxnCoordinatorDAOImpl struct {
-	cache *db.CacheService
+	cache   *db.CacheService
+	rocksdb *db.RocksDB
 }
 
-func NewTxnCoordinatorDAO(cacheService *db.CacheService) TxnCoordinatorDAO {
-	return &TxnCoordinatorDAOImpl{cacheService}
+func NewTxnCoordinatorDAO(cacheService *db.CacheService, lockDB *db.RocksDB) TxnCoordinatorDAO {
+	return &TxnCoordinatorDAOImpl{cacheService, lockDB}
 }
 
 func (tcDao *TxnCoordinatorDAOImpl) InsertPeers(id string, peers string) (bool, error) {
 	rs, err := tcDao.cache.HSet("peers", id, peers).Result()
 
 	if err != nil {
-		log.Println("cannot get current_id")
+		log.Println("cannot InsertPeers")
 		return rs, err
 	}
 
@@ -47,7 +51,7 @@ func (tcDao *TxnCoordinatorDAOImpl) GetMaxId() string {
 	rs, err := tcDao.cache.Get("current_id").Result()
 
 	if err != nil {
-		log.Fatalln("cannot get current_id")
+		log.Println("cannot get current_id")
 	}
 
 	return rs
@@ -57,7 +61,7 @@ func (tcDao *TxnCoordinatorDAOImpl) IncrMaxId() int64 {
 	rs, err := tcDao.cache.Incr("current_id").Result()
 
 	if err != nil {
-		log.Fatalln("cannot set current_id")
+		log.Println("cannot set current_id")
 	}
 
 	return rs
@@ -70,13 +74,30 @@ func (tcDao *TxnCoordinatorDAOImpl) CheckLock(lockId string) (int64, error) {
 
 func (tcDao *TxnCoordinatorDAOImpl) CreateLock(lockId string, state string, timeout time.Duration) (bool, error) {
 	updated, err := tcDao.cache.SetNX(lockId, state, timeout).Result()
-	if err != nil {
-		return false, err
-	} else if !updated {
+	if err != nil || !updated {
 		return false, err
 	}
 	return true, nil
 }
+
+// func (tcDao *TxnCoordinatorDAOImpl) CheckLock(lockId string) (int64, error) {
+// 	status, err := tcDao.rocksdb.Get(lockId)
+// 	if status == "" {
+// 		return 0, nil
+// 	} else if err != nil {
+// 		return 0, err
+// 	}
+// 	return 100, nil
+// }
+
+// func (tcDao *TxnCoordinatorDAOImpl) CreateLock(lockId string, state string, timeout time.Duration) (bool, error) {
+// 	data, err := tcDao.rocksdb.Get(lockId)
+// 	if data == "" {
+// 		err = tcDao.rocksdb.Set(lockId, state)
+// 		return true, nil
+// 	}
+// 	return false, err
+// }
 
 func (tcDao *TxnCoordinatorDAOImpl) RefreshLock(lockId string, timeout time.Duration) (bool, error) {
 	updated, err := tcDao.cache.Expire(lockId, timeout).Result()
@@ -94,28 +115,39 @@ func (tcDao *TxnCoordinatorDAOImpl) DeleteLock(lockId string) (int64, error) {
 	return result, nil
 }
 
+// func (tcDao *TxnCoordinatorDAOImpl) DeleteLock(lockId string) (int64, error) {
+// 	err := tcDao.rocksdb.Del(lockId)
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	return 100, nil
+// }
+
 func (tcDao *TxnCoordinatorDAOImpl) GetPeersList() map[string]string {
-	rs, err := tcDao.cache.HGetAll("peers").Result()
-
-	if err != nil {
-		log.Println("cannot get peer list, err: ", err)
-		return nil
-	}
-
+	rs, _ := tcDao.cache.HGetAll("peers").Result()
 	return rs
 }
 
-func (tcDao *TxnCoordinatorDAOImpl) GetPeerBucket(id string) string {
-	rs, err := tcDao.cache.HGet("buckets", id).Result()
-	if err != nil {
-		log.Println("cannot get peer bucket: ", err)
-	}
+// func (tcDao *TxnCoordinatorDAOImpl) GetPeerBucket(id string) string {
+// 	rs, _ := tcDao.cache.HGet("buckets", id).Result()
+// 	return rs
+// }
 
+// func (tcDao *TxnCoordinatorDAOImpl) InsertPeerBucket(id string, peer string) error {
+// 	_, err := tcDao.cache.HSet("buckets", id, peer).Result()
+// 	if err != nil {
+// 		log.Println("cannot set peer Bucket for id: ", id, " value: ", peer)
+// 	}
+// 	return err
+// }
+
+func (tcDao *TxnCoordinatorDAOImpl) GetPeerBucket(id string) string {
+	rs, _ := tcDao.rocksdb.Get("buckets:" + id)
 	return rs
 }
 
 func (tcDao *TxnCoordinatorDAOImpl) InsertPeerBucket(id string, peer string) error {
-	_, err := tcDao.cache.HSet("buckets", id, peer).Result()
+	err := tcDao.rocksdb.Set("buckets:"+id, peer)
 	if err != nil {
 		log.Println("cannot set peer Bucket for id: ", id, " value: ", peer)
 	}
@@ -129,11 +161,11 @@ func (tcDao *TxnCoordinatorDAOImpl) CreateTransactionEntry(txnId string, ts int6
 		"state": state,
 		"locks": lockIds,
 	}
-	_, err := tcDao.cache.HMSet(txnHKey, fields).Result()
-	tcDao.cache.Expire(txnHKey, 600000*time.Millisecond)
+	var b, _ = json.Marshal(fields)
+	err := tcDao.rocksdb.Set(txnHKey, string(b))
 
 	if err != nil {
-		log.Fatalln("cannot CreateTransactionEntry")
+		log.Println("cannot CreateTransactionEntry")
 	}
 }
 
@@ -143,10 +175,10 @@ func (tcDao *TxnCoordinatorDAOImpl) CreateSubTransactionEntry(txnId string, stat
 		"state": state,
 		"inst":  utils.SerializeMessage(inst),
 	}
-	_, err := tcDao.cache.HMSet(txnHKey, fields).Result()
-	tcDao.cache.Expire(txnHKey, 600000*time.Millisecond)
+	var b, _ = json.Marshal(fields)
+	err := tcDao.rocksdb.Set(txnHKey, string(b))
 
 	if err != nil {
-		log.Fatalln("cannot CreateSubTransactionEntry ", err)
+		log.Println("cannot CreateSubTransactionEntry ", err)
 	}
 }

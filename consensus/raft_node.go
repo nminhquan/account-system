@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"gitlab.zalopay.vn/quannm4/mas/config"
 	"context"
 	"fmt"
 	"log"
@@ -10,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"gitlab.zalopay.vn/quannm4/mas/config"
 
 	"go.etcd.io/etcd/etcdserver/api/rafthttp"
 	"go.etcd.io/etcd/etcdserver/api/snap"
@@ -58,7 +59,7 @@ type RaftNode struct {
 
 func NewRaftNode(id int, idCluster int, peers []string, join bool, proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange) (<-chan *string, <-chan error, <-chan *snap.Snapshotter, *RaftNode) {
-	commitC := make(chan *string)
+	commitC := make(chan *string, 100000)
 	errorC := make(chan error)
 
 	rc := &RaftNode{
@@ -161,7 +162,6 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 			s := string(ents[i].Data)
 			select {
 			case rc.commitC <- &s:
-				log.Printf("publishEntries: Sent data to commitC, with raft role = " + rc.node.Status().RaftState.String())
 			case <-rc.stopc:
 				return false
 			}
@@ -173,7 +173,7 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) bool {
 			rc.confState = *rc.node.ApplyConfChange(cc)
 			switch cc.Type {
 			case raftpb.ConfChangeAddNode:
-				log.Println("publishEntries: COnfigchange Addnode ", cc.NodeID)
+				log.Println("publishEntries: Configchange Addnode ", cc.NodeID)
 				if len(cc.Context) > 0 {
 					rc.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
 				}
@@ -216,11 +216,12 @@ func (rc *RaftNode) sendProposal() {
 					rc.proposeC = nil
 				} else {
 					// blocks until accepted by raft state machine
+					log.Println("[Raft] Propose 1 ", prop)
 					err := rc.node.Propose(context.TODO(), []byte(prop))
 					if err != nil {
 						log.Fatalf("error: %v\n", err)
 					}
-					log.Println("DONE SENDING PROPOSAL")
+					log.Println("[Raft] Propose 2 ", prop)
 				}
 
 			case cc, ok := <-rc.confChangeC: // receive proposal from confChangeC
@@ -228,7 +229,7 @@ func (rc *RaftNode) sendProposal() {
 					log.Println("confChangeC is closed")
 					rc.confChangeC = nil
 				} else {
-					log.Printf("Sending confgChange proposal: %v", cc.String())
+					log.Printf("Sending confgChange proposal")
 					confChangeCount++
 					cc.ID = confChangeCount
 					rc.node.ProposeConfChange(context.TODO(), cc)
@@ -267,7 +268,7 @@ func (rc *RaftNode) serveChannels() {
 
 	defer rc.wal.Close()
 
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
 	// send proposal
@@ -290,6 +291,7 @@ func (rc *RaftNode) serveChannels() {
 				rc.raftStorage.ApplySnapshot(rd.Snapshot)
 				rc.publishSnapshot(rd.Snapshot)
 			}
+			/**slow, optimize later**/
 			rc.raftStorage.Append(rd.Entries)
 			rc.transport.Send(rd.Messages)
 			if ok := rc.publishEntries(rc.entriesToApply(rd.CommittedEntries)); !ok {

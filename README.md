@@ -752,10 +752,10 @@ Each account when registered will be generated with a JWT token which contain th
 - Implement hashing cho account_id.
 - Implement data layer bằng RocksDB.
 - Benchmark using Locust
-
+	- Performance: Số lượng node của raft group ảnh hưởng đến thời gian chạy, càng nhiều node thời gian consensus càng lâu.
 ## Known issues:
-- Cần lock record khi đọc balance. Vì dữ liệu có thể bị thay đổi từ lúc đọc balance cho đến khi lock record.
-
+- Raft đang gặp performance issue khi test trên 10000 users, khi append log thì hàm này chạy khá chậm. Do có mutex lock lại để đảm bảo thứ tự nên gây ra vấn đề chậm.
+  - Khi bỏ dòng này ra thì tốc độ cải thiện khoảng x3 ~ 4 lần, tức khoảng 1800 requests/s
 ## Tài liệu tham khảo:
 1. https://en.wikipedia.org/wiki/Isolation_(database_systems)
 2. https://en.wikipedia.org/wiki/Two-phase_commit_protocol

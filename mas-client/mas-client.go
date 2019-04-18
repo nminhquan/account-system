@@ -29,34 +29,43 @@ func main() {
 		if *accNum == "" {
 			log.Fatalln("Account number must not be empty")
 		}
-		log.Println("getAccount with accNum:", *accNum)
 		accInfo, err := accClient.GetAccountRequest(*accNum)
 		if err != nil {
 			panic(err)
 		}
-		log.Println("getAccount:", accInfo)
+		log.Println("AccountInfo:", accInfo)
 	case *createAcc:
 		if *accNum == "" {
 			log.Fatalln("Account number must not be empty")
 		}
-		log.Println("createAccount with accNum:", *accNum, ", accBal:", *accBal)
 		msg, err := accClient.CreateAccountRequest(*accNum, *accBal)
 		if err != nil {
 			panic(err)
 		}
-		log.Println("createAccount:", msg)
+		log.Println("CreateAccount status:", msg)
 	case *createPmt:
 		if *accFrom == "" || *accTo == "" {
 			log.Fatalln("Account number must not be empty")
 		} else if *amount <= 0.0 {
 			log.Fatalln("Amount transfer must be > 0.0")
 		}
-		log.Println("createPayment with from:", *accFrom, " to:", *accTo, ", amount:", *amount)
 		msg, err := accClient.CreatePaymentRequest(*accFrom, *accTo, *amount)
 		if err != nil {
 			panic(err)
 		}
-		log.Println("createAccount:", msg)
+		log.Println("CreatePayment status:", msg)
+
+		msg, err = accClient.GetAccountRequest(*accFrom)
+		if err != nil {
+			panic(err)
+		}
+		log.Println("From Account status:", msg)
+
+		msg, err = accClient.GetAccountRequest(*accTo)
+		if err != nil {
+			panic(err)
+		}
+		log.Println("To Account status:", msg)
 	default:
 		log.Fatalln("invalid action")
 	}

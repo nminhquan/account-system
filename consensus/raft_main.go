@@ -29,7 +29,7 @@ type RaftClusterInfo struct {
 
 // TODO: Write TESTABLE functions
 func RaftInit(clusterConfig RaftClusterConfig) *RaftClusterInfo {
-	proposeC := make(chan string)
+	proposeC := make(chan string, 100000)
 	confChangeC := make(chan raftpb.ConfChange)
 	commitC, errorC, snapshotterReady, rc := NewRaftNode(*clusterConfig.Id, *clusterConfig.IdCluster, strings.Split(*clusterConfig.Cluster, ","), *clusterConfig.Join, proposeC, confChangeC)
 	return &RaftClusterInfo{rc, proposeC, commitC, confChangeC, errorC, snapshotterReady}

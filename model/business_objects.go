@@ -6,6 +6,7 @@ import (
 
 type Instruction struct {
 	Type string // Createaccount/createpayment
+	XID  string
 	Data interface{}
 }
 

@@ -26,6 +26,7 @@ service AccountService {
   rpc CreateAccount (AccountRequest) returns (AccountReply) {}
   rpc CreatePayment (PaymentRequest) returns (PaymentReply) {}
   rpc GetAccount (AccountRequest) returns (AccountReply) {}
+  rpc TestMethod (TestMessage) returns (TestMessage) {}
 }
 
 // The request message containing the user's name.
@@ -48,5 +49,9 @@ message PaymentRequest {
 
 // The response message containing the greetings
 message PaymentReply {
+  string message = 1;
+}
+
+message TestMessage {
   string message = 1;
 }
