@@ -34,6 +34,9 @@ RUN rm -rf ~/.netrc
 # Build the binary.
 RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="-w -s" -o /go/bin/mas
 RUN go get github.com/mattn/goreman
+RUN apt-get update && \
+apt-get -y install vim
+
 # ENTRYPOINT ["./run.sh"]
 ############################
 # STEP 2 build a small image

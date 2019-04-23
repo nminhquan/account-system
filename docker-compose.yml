@@ -18,7 +18,7 @@ services:
     restart: always
     image: mas_image:latest
     container_name: mas-tc
-    command: tail -f /dev/null
+    command: goreman -f Procfile2 start
     ports:
       - "9008:9008"
 
@@ -26,19 +26,31 @@ services:
     restart: always
     image: mas_image:latest
     container_name: mas-rm-1
-    command: tail -f /dev/null
+    command: >
+      bash -c "echo 'raftgroup1-1: go run main.go --mode rm --clusterid 1 --id 1 --cluster http://127.0.0.1:12379 --raftport :12379 --rmport :50041 --db mas' > ./Procfile |
+      goreman start"
+    depends_on:
+      - mas-tc
 
   mas-rm-2:
     restart: always
     image: mas_image:latest
     container_name: mas-rm-2
-    command: tail -f /dev/null
+    command: >
+      bash -c "echo 'raftgroup1-1: go run main.go --mode rm --clusterid 2 --id 1 --cluster http://127.0.0.1:12379 --raftport :12379 --rmport :50041 --db mas' > ./Procfile |
+      goreman start"
+    depends_on:
+          - mas-tc
 
   mas-rm-3:
     restart: always
     image: mas_image:latest
     container_name: mas-rm-3
-    command: tail -f /dev/null
+    command: >
+      bash -c "echo 'raftgroup1-1: go run main.go --mode rm --clusterid 3 --id 1 --cluster http://127.0.0.1:12379 --raftport :12379 --rmport :50041 --db mas' > ./Procfile |
+      goreman start"
+    depends_on:
+          - mas-tc
 
 volumes:
   mas:
