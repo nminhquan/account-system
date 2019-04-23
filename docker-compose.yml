@@ -1,0 +1,51 @@
+version: '2.3'
+
+services:
+  mas-redis:
+    restart: always
+    image: redis:4.0
+    container_name: mas-redis
+    command: /bin/bash -c 'redis-server --appendonly yes'
+    sysctls:
+      - net.core.somaxconn=65535
+    ports:
+      - "6379:6379"
+
+  mas-tc:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    restart: always
+    image: mas_image:latest
+    container_name: mas-tc
+    command: tail -f /dev/null
+    ports:
+      - "9008:9008"
+
+  mas-rm-1:
+    restart: always
+    image: mas_image:latest
+    container_name: mas-rm-1
+    command: tail -f /dev/null
+
+  mas-rm-2:
+    restart: always
+    image: mas_image:latest
+    container_name: mas-rm-2
+    command: tail -f /dev/null
+
+  mas-rm-3:
+    restart: always
+    image: mas_image:latest
+    container_name: mas-rm-3
+    command: tail -f /dev/null
+
+volumes:
+  mas:
+    driver: local
+  redis:
+    driver: local
+
+networks:
+  mysqlnetwork:
+    driver: bridge

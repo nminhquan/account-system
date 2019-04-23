@@ -268,7 +268,7 @@ func (rc *RaftNode) serveChannels() {
 
 	defer rc.wal.Close()
 
-	ticker := time.NewTicker(10 * time.Millisecond)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	// send proposal

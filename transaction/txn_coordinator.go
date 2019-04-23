@@ -7,7 +7,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"time"
 
 	"gitlab.zalopay.vn/quannm4/mas/config"
 
@@ -78,11 +77,7 @@ func (tc *TxnCoordinator) GetAccount(ctx context.Context, in *pb.AccountRequest)
 
 func (tc *TxnCoordinator) CreateAccount(ctx context.Context, in *pb.AccountRequest) (*pb.AccountReply, error) {
 	accInfo := &model.AccountInfo{Number: in.AccountNumber, Balance: in.Balance}
-	start := time.Now()
 	peers := assignPeers()
-	elapsed := time.Since(start)
-	log.Printf("[TC] Time elapsed to CreateAccount 0: %v", float64(elapsed.Nanoseconds()/int64(time.Millisecond)))
-	start1 := time.Now()
 	rmClient := client.CreateRMClient(peers)
 	globalLock := client.CreateLockClient(config.LockServHost, accInfo.Number)
 	globalTxnId := utils.GenXid()
@@ -92,11 +87,8 @@ func (tc *TxnCoordinator) CreateAccount(ctx context.Context, in *pb.AccountReque
 	subTxns := []Transaction{
 		localTxn,
 	}
-	elapsed1 := time.Since(start1)
-	log.Printf("[TC %v] Time elapsed to CreateAccount 1: %v", globalTxnId, float64(elapsed1.Nanoseconds()/int64(time.Millisecond)))
 	var txn Transaction = NewGlobalTransaction(subTxns, globalTxnId)
 	var message string
-	start2 := time.Now()
 	if txn.Prepare() {
 		if bucket := txnDao.GetPeerBucket(in.AccountNumber); bucket != "" {
 			message := fmt.Sprintln("FAIL: Account already exists, id = ", in.AccountNumber, " bucket = ", bucket)
@@ -107,29 +99,16 @@ func (tc *TxnCoordinator) CreateAccount(ctx context.Context, in *pb.AccountReque
 		message = model.RPC_MESSAGE_FAIL + " Cannot Prepare() global transaction"
 		return &pb.AccountReply{Message: message}, nil
 	}
-	elapsed2 := time.Since(start2)
-	log.Printf("[TC %v] Time elapsed to CreateAccount 2: %v", globalTxnId, float64(elapsed2.Nanoseconds()/int64(time.Millisecond)))
-	start3 := time.Now()
+
 	if txn.Begin() {
-		elapsed3 := time.Since(start3)
-		log.Printf("[TC %v] Time elapsed to CreateAccount 3: %v", globalTxnId, float64(elapsed3.Nanoseconds()/int64(time.Millisecond)))
-		start4 := time.Now()
 		txnDao.CreateTransactionEntry(globalTxnId, utils.GetCurrentTimeInMillis(), model.TXN_STATE_COMMITTED, fmt.Sprintf("%v", accInfo.Number))
-		elapsed4 := time.Since(start4)
-		log.Printf("[TC %v] Time elapsed to CreateAccount 4: %v", globalTxnId, float64(elapsed4.Nanoseconds()/int64(time.Millisecond)))
-		start5 := time.Now()
 		txn.Commit()
 		txnDao.InsertPeerBucket(accInfo.Number, strings.Join(peers, ","))
 		message = model.RPC_MESSAGE_OK
-		elapsed5 := time.Since(start5)
-		log.Printf("[TC %v] Time elapsed to CreateAccount 5: %v", globalTxnId, float64(elapsed5.Nanoseconds()/int64(time.Millisecond)))
-
 	} else {
 		txnDao.CreateTransactionEntry(globalTxnId, utils.GetCurrentTimeInMillis(), model.TXN_STATE_ABORTED, fmt.Sprintf("%v", accInfo.Number))
 		message = model.RPC_MESSAGE_FAIL
 	}
-	elapsed6 := time.Since(start3)
-	log.Printf("[TC %v] Time elapsed to CreateAccount 6: %v", globalTxnId, float64(elapsed6.Nanoseconds()/int64(time.Millisecond)))
 	return &pb.AccountReply{Message: message}, nil
 }
 

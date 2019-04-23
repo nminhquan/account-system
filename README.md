@@ -50,12 +50,14 @@ Some abbreviations used in this document:
 	- [5.3 Enable TLS and JWT in Server](#53-enable-tls-and-jwt-in-server)
 	- [5.4 Make a request to TC](#54-make-a-request-to-tc)
 	- [5.4 Register JWT Token for new account](#54-register-jwt-token-for-new-account)
+- [6. Deployment](#6-deployment)
 	- [Các vấn đề chưa, sẽ giải quyết](#c%C3%A1c-v%E1%BA%A5n-%C4%91%E1%BB%81-ch%C6%B0a-s%E1%BA%BD-gi%E1%BA%A3i-quy%E1%BA%BFt)
 	- [Known issues:](#known-issues)
 	- [Tài liệu tham khảo:](#t%C3%A0i-li%E1%BB%87u-tham-kh%E1%BA%A3o)
 	- [Appendix A: Raft cluster configuration](#appendix-a-raft-cluster-configuration)
-	- [Appendix B: TODO: Redistribute (rebalance) Data khi add node](#appendix-b-todo-redistribute-rebalance-data-khi-add-node)
+	- [Appendix B: TODO: Redistribute (rebalance) Data khi add/remove node](#appendix-b-todo-redistribute-rebalance-data-khi-addremove-node)
 	- [Install RocksDB on MacOS](#install-rocksdb-on-macos)
+	- [Making Dockerfile](#making-dockerfile)
   
 # 1. Distributed systems
 Given the distributed system, where each service has its own Database system, the problem is to make sure the ACID (Atomicity, Consistency, Isolation, Durability) of a transaction between data among the cluster nodes.
@@ -740,17 +742,32 @@ $  mas_client --createAcc --number "abc"\
 ## 5.4 Register JWT Token for new account
 Each account when registered will be generated with a JWT token which contain the account info, when authenticate, if all info is correct then the transaction will begin otherwise return an authentication error.
 
+# 6. Deployment
+Use Docker compose to build image and create containers:
+```
+$ docker-compose up --build
+```
+
+After that we will have 3 resource manager and 1 transaction coordinator containers.
+- Attach shell to `mas-tc` container and execute below command to start TC services:
+```
+goreman -f Procfile2 start
+```
+- Attach shell to `mas-rm-*` containers and execute below command to start RM services:
+```
+goreman start
+```
+
+If we want to create own containers and services, we can build the image by executing the `$ ./build.sh` to build the image then run your cluster by creating containers.
+
 ## Các vấn đề chưa, sẽ giải quyết
 - Hiện tại chỉ hỗ trợ 1 `Transaction Manager`, trong tương lai có thể add thêm TM để tạo thành cluster và dùng Raft để sync data trên các TM đó.
 - Hiện tại chỉ lock resource khi write, khi read dữ liệu có thể bị trường hợp đọc dữ liệu chưa được commit. (`READ UNCOMMITTED`). Có thể nâng cấp lên thành `READ COMMITTED`. Khi đó cần phải hiện thực shared-lock cho Read statement.
 - Hiện tại, 1 transaction sẽ get global lock trước rồi mới bắt đầu local lock rồi local commit, nhưng để tăng performance, có thể làm giống [Fescar AT](https://github.com/fescar-group/awesome-fescar/blob/master/wiki/en-us/Fescar-AT.md) đó là local lock -> global lock -> local commit -> global commit. Như vậy nếu trường hợp có 2 transaction cùng update 1 dữ liệu thì sẽ nhanh hơn, nhưng cũng sẽ có trường hợp bị chờ deadlock.
 - Account Service cần được thực hiện async, tức là trả về kết quả phase 1 ngay khi propose xong, không đợi đến bước apply change to state machine. Sau đó TC gửi request Commit, thì Account Service mới bắt đầu xin global lock và commit. Tương tự với trường hợp Rollback.
-- Cần phải lưu UNDO log dữ liệu snapshot before change và after change của row trước và sau khi commit.
 - Hiện tại chưa hỗ trợ việc undo, redo log khi TC mất điện. Có nghĩa là chỉ hỗ trợ undo nếu có 1 giao dịch fail, TC vẫn hoạt động bình thường, nếu như TC chưa kịp commit giao dịch mà bị mất điện thì khi start lên lại, TC phải thực hiện crash recovery, scan log xem có giao dịch nào chưa commit thì sẽ `undo`, còn giao dịch nào đã commit nhưng chưa write xuống DB sẽ đuợc `redo`
 - Multi-raft config change rebalance dvata -> hiện tại chưa hỗ trợ việc redistribute lại data khi add thêm Raft-group vào Multi-raft.
 - Thay vì distribute data theo maxId, có thể dùng Nginx để làm reverse proxy và load balancer.
-- Implement hashing cho account_id.
-- Implement data layer bằng RocksDB.
 - Benchmark using Locust
 	- Performance: Số lượng node của raft group ảnh hưởng đến thời gian chạy, càng nhiều node thời gian consensus càng lâu.
 ## Known issues:
@@ -769,7 +786,7 @@ Each account when registered will be generated with a JWT token which contain th
 ## Appendix A: Raft cluster configuration
 Theo minh hoạ, Raft cần phải có số node là 2F + 1 (F là số node tối đa có thể fail), để đảm bảo đồng thuận luôn thành công và tránh trường hợp split-brain.
 
-## Appendix B: TODO: Redistribute (rebalance) Data khi add node
+## Appendix B: TODO: Redistribute (rebalance) Data khi add/remove node
 
 ## Install RocksDB on MacOS
 - Install Homebrew sau đó chạy command:
@@ -783,3 +800,9 @@ $ CGO_CFLAGS="-I/usr/local/Cellar/rocksdb/5.18.3/include"
 $ CGO_LDFLAGS="-L/usr/local/Cellar/rocksdb/5.18.3 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
 $ go get github.com/tecbot/gorocksdb
 ```
+
+## Making Dockerfile
+To build a docker image including the compiled code and libraries, we need to create a Dockerfile which includes:
+- Golang base image
+- Install rocksdb and dependencies
+- Copy code from current project to image and build
