@@ -17,6 +17,7 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0
+	github.com/mattn/goreman v0.2.1 // indirect
 	github.com/myzhan/boomer v0.0.0-20190321085146-9f3c9f575895
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
@@ -24,7 +25,7 @@ require (
 	github.com/prometheus/common v0.0.0-20180518154759-7600349dcfe1
 	github.com/rs/xid v1.2.1
 	github.com/spf13/viper v1.3.2
-	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481
+	github.com/tecbot/gorocksdb v0.0.0-20190705090504-162552197222
 	github.com/theodesp/blockingQueues v0.0.0-20171230192932-26531ad66e7c
 	github.com/zeromq/gomq v0.0.0-20181008000130-95dc37dee5c4 // indirect
 	go.etcd.io/etcd v0.0.0-20190322183551-7a5acb4a43aa

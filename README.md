@@ -40,8 +40,8 @@ Some abbreviations used in this document:
 	- [Commit case:](#commit-case)
 	- [Rollback case:](#rollback-case)
 	- [Write Locking](#write-locking)
-		- [Trường hợp commit](#tr%C6%B0%E1%BB%9Dng-h%E1%BB%A3p-commit)
-		- [Trường hợp rollback](#tr%C6%B0%E1%BB%9Dng-h%E1%BB%A3p-rollback)
+		- [Trường hợp commit](#tr%c6%b0%e1%bb%9dng-h%e1%bb%a3p-commit)
+		- [Trường hợp rollback](#tr%c6%b0%e1%bb%9dng-h%e1%bb%a3p-rollback)
 	- [Read Locking](#read-locking)
 		- [Read-Uncommitted](#read-uncommitted)
 - [5. API Authentication](#5-api-authentication)
@@ -51,9 +51,9 @@ Some abbreviations used in this document:
 	- [5.4 Make a request to TC](#54-make-a-request-to-tc)
 	- [5.4 Register JWT Token for new account](#54-register-jwt-token-for-new-account)
 - [6. Deployment](#6-deployment)
-	- [Các vấn đề chưa, sẽ giải quyết](#c%C3%A1c-v%E1%BA%A5n-%C4%91%E1%BB%81-ch%C6%B0a-s%E1%BA%BD-gi%E1%BA%A3i-quy%E1%BA%BFt)
+	- [Các vấn đề chưa, sẽ giải quyết](#c%c3%a1c-v%e1%ba%a5n-%c4%91%e1%bb%81-ch%c6%b0a-s%e1%ba%bd-gi%e1%ba%a3i-quy%e1%ba%bft)
 	- [Known issues:](#known-issues)
-	- [Tài liệu tham khảo:](#t%C3%A0i-li%E1%BB%87u-tham-kh%E1%BA%A3o)
+	- [Tài liệu tham khảo:](#t%c3%a0i-li%e1%bb%87u-tham-kh%e1%ba%a3o)
 	- [Appendix A: Raft cluster configuration](#appendix-a-raft-cluster-configuration)
 	- [Appendix B: TODO: Redistribute (rebalance) Data khi add/remove node](#appendix-b-todo-redistribute-rebalance-data-khi-addremove-node)
 	- [Install RocksDB on MacOS](#install-rocksdb-on-macos)
@@ -794,10 +794,10 @@ Theo minh hoạ, Raft cần phải có số node là 2F + 1 (F là số node t�
 $ brew install rocksdb
 ```
 Xem trong stdout có xuất ra đường dẫn đến rocksdb, trong trường hợp này là: "/usr/local/Cellar/rocksdb/5.18.3"
-- Tiếp tục chạy command như sau:v
+- Tiếp tục chạy command như sau:
 ```
-$ CGO_CFLAGS="-I/usr/local/Cellar/rocksdb/5.18.3/include"
-$ CGO_LDFLAGS="-L/usr/local/Cellar/rocksdb/5.18.3 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+$ CGO_CFLAGS="-I/usr/local/Cellar/rocksdb/6.1.2/include"
+$ CGO_LDFLAGS="-L/usr/local/Cellar/rocksdb/6.1.2 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
 $ go get github.com/tecbot/gorocksdb
 ```
 
