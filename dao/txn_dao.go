@@ -67,37 +67,37 @@ func (tcDao *TxnCoordinatorDAOImpl) IncrMaxId() int64 {
 	return rs
 }
 
-func (tcDao *TxnCoordinatorDAOImpl) CheckLock(lockId string) (int64, error) {
-	result, err := tcDao.cache.Exists(lockId).Result()
-	return result, err
-}
-
-func (tcDao *TxnCoordinatorDAOImpl) CreateLock(lockId string, state string, timeout time.Duration) (bool, error) {
-	updated, err := tcDao.cache.SetNX(lockId, state, timeout).Result()
-	if err != nil || !updated {
-		return false, err
-	}
-	return true, nil
-}
-
 // func (tcDao *TxnCoordinatorDAOImpl) CheckLock(lockId string) (int64, error) {
-// 	status, err := tcDao.rocksdb.Get(lockId)
-// 	if status == "" {
-// 		return 0, nil
-// 	} else if err != nil {
-// 		return 0, err
-// 	}
-// 	return 100, nil
+// 	result, err := tcDao.cache.Exists(lockId).Result()
+// 	return result, err
 // }
 
 // func (tcDao *TxnCoordinatorDAOImpl) CreateLock(lockId string, state string, timeout time.Duration) (bool, error) {
-// 	data, err := tcDao.rocksdb.Get(lockId)
-// 	if data == "" {
-// 		err = tcDao.rocksdb.Set(lockId, state)
-// 		return true, nil
+// 	updated, err := tcDao.cache.SetNX(lockId, state, timeout).Result()
+// 	if err != nil || !updated {
+// 		return false, err
 // 	}
-// 	return false, err
+// 	return true, nil
 // }
+
+func (tcDao *TxnCoordinatorDAOImpl) CheckLock(lockId string) (int64, error) {
+	status, err := tcDao.rocksdb.Get(lockId)
+	if status == "" {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return 100, nil
+}
+
+func (tcDao *TxnCoordinatorDAOImpl) CreateLock(lockId string, state string, timeout time.Duration) (bool, error) {
+	data, err := tcDao.rocksdb.Get(lockId)
+	if data == "" {
+		err = tcDao.rocksdb.Set(lockId, state)
+		return true, nil
+	}
+	return false, err
+}
 
 func (tcDao *TxnCoordinatorDAOImpl) RefreshLock(lockId string, timeout time.Duration) (bool, error) {
 	updated, err := tcDao.cache.Expire(lockId, timeout).Result()
@@ -107,21 +107,21 @@ func (tcDao *TxnCoordinatorDAOImpl) RefreshLock(lockId string, timeout time.Dura
 	return updated, nil
 }
 
-func (tcDao *TxnCoordinatorDAOImpl) DeleteLock(lockId string) (int64, error) {
-	result, err := tcDao.cache.Del(lockId).Result()
-	if err != nil {
-		return result, err
-	}
-	return result, nil
-}
-
 // func (tcDao *TxnCoordinatorDAOImpl) DeleteLock(lockId string) (int64, error) {
-// 	err := tcDao.rocksdb.Del(lockId)
+// 	result, err := tcDao.cache.Del(lockId).Result()
 // 	if err != nil {
-// 		return 0, err
+// 		return result, err
 // 	}
-// 	return 100, nil
+// 	return result, nil
 // }
+
+func (tcDao *TxnCoordinatorDAOImpl) DeleteLock(lockId string) (int64, error) {
+	err := tcDao.rocksdb.Del(lockId)
+	if err != nil {
+		return 0, err
+	}
+	return 100, nil
+}
 
 func (tcDao *TxnCoordinatorDAOImpl) GetPeersList() map[string]string {
 	rs, _ := tcDao.cache.HGetAll("peers").Result()

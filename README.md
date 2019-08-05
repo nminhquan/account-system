@@ -791,6 +791,8 @@ Theo minh hoạ, Raft cần phải có số node là 2F + 1 (F là số node t�
 ## Install RocksDB on MacOS
 - Install Homebrew sau đó chạy command:
 ```
+$ brew tap homebrew/versions
+$ brew install gcc48 --use-llvm
 $ brew install rocksdb
 ```
 Xem trong stdout có xuất ra đường dẫn đến rocksdb, trong trường hợp này là: "/usr/local/Cellar/rocksdb/5.18.3"

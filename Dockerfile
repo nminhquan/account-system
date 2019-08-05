@@ -1,8 +1,8 @@
 FROM golang:latest
 RUN echo "deb http://deb.debian.org/debian stretch-backports main" >> /etc/apt/sources.list && \
     apt-get update && \
-    apt-get -y install libz-dev libbz2-dev libsnappy-dev && \
-    apt-get -y -t stretch-backports install librocksdb-dev && \
+    apt-get -y install libz-dev libbz2-dev libsnappy-dev librocksdb5.17 && \
+    apt-get -y install librocksdb-dev && \
     rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/facebook/rocksdb.git /tmp/rocksdb
