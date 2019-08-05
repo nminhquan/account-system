@@ -1,4 +1,4 @@
-package main //import abc
+package main
 
 import (
 	"flag"
