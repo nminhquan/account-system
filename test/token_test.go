@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gitlab.zalopay.vn/quannm4/mas/credentials"
+	"github.com/nminhquan/mas/credentials"
 )
 
 const testData = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIifQ.X0-Uu2UO7r_l4HiOS06V4Xs_VTTDabZxRAYRVRHLEJA"

@@ -1,4 +1,4 @@
-module gitlab.zalopay.vn/quannm4/mas
+module github.com/nminhquan/mas
 
 go 1.12
 

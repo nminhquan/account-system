@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/db"
-	. "gitlab.zalopay.vn/quannm4/mas/transaction"
+	"github.com/nminhquan/mas/db"
+	. "github.com/nminhquan/mas/transaction"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

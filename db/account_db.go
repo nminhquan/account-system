@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	. "gitlab.zalopay.vn/quannm4/mas/model"
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	. "github.com/nminhquan/mas/model"
+	"github.com/nminhquan/mas/utils"
 )
 
 type AccountDB struct {

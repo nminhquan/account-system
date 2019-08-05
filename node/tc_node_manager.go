@@ -6,18 +6,18 @@ import (
 	"net"
 	"strings"
 
-	"gitlab.zalopay.vn/quannm4/mas/transaction"
+	"github.com/nminhquan/mas/transaction"
 
-	"gitlab.zalopay.vn/quannm4/mas/config"
+	"github.com/nminhquan/mas/config"
 
-	"gitlab.zalopay.vn/quannm4/mas/client"
-	"gitlab.zalopay.vn/quannm4/mas/dao"
-	"gitlab.zalopay.vn/quannm4/mas/db"
+	"github.com/nminhquan/mas/client"
+	"github.com/nminhquan/mas/dao"
+	"github.com/nminhquan/mas/db"
 
-	"gitlab.zalopay.vn/quannm4/mas/model"
+	"github.com/nminhquan/mas/model"
 
-	"gitlab.zalopay.vn/quannm4/mas/credentials"
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
+	"github.com/nminhquan/mas/credentials"
+	pb "github.com/nminhquan/mas/proto"
 	"google.golang.org/grpc"
 	grpc_creds "google.golang.org/grpc/credentials"
 )

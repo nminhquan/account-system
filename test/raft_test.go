@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	consensus "gitlab.zalopay.vn/quannm4/mas/consensus"
-	"gitlab.zalopay.vn/quannm4/mas/model"
-	. "gitlab.zalopay.vn/quannm4/mas/resource_manager"
+	consensus "github.com/nminhquan/mas/consensus"
+	"github.com/nminhquan/mas/model"
+	. "github.com/nminhquan/mas/resource_manager"
 )
 
 func makeConfig() consensus.RaftClusterConfig {

@@ -3,8 +3,8 @@ package transaction_test
 import (
 	"testing"
 
-	"gitlab.zalopay.vn/quannm4/mas/test/mock/mock_transaction"
-	"gitlab.zalopay.vn/quannm4/mas/transaction"
+	"github.com/nminhquan/mas/test/mock/mock_transaction"
+	"github.com/nminhquan/mas/transaction"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
+	pb "github.com/nminhquan/mas/proto"
 
 	"google.golang.org/grpc"
 )

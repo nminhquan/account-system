@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/credentials"
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
+	"github.com/nminhquan/mas/credentials"
+	pb "github.com/nminhquan/mas/proto"
 	"google.golang.org/grpc"
 	grpc_creds "google.golang.org/grpc/credentials"
 )

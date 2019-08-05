@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.zalopay.vn/quannm4/mas/model"
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/model"
+	"github.com/nminhquan/mas/utils"
 )
 
 func TestMarshallingToJSON(t *testing.T) {

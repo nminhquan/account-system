@@ -11,11 +11,11 @@ import (
 
 	"github.com/theodesp/blockingQueues"
 
-	"gitlab.zalopay.vn/quannm4/mas/consensus"
-	"gitlab.zalopay.vn/quannm4/mas/dao"
-	"gitlab.zalopay.vn/quannm4/mas/db"
-	"gitlab.zalopay.vn/quannm4/mas/model"
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/consensus"
+	"github.com/nminhquan/mas/dao"
+	"github.com/nminhquan/mas/db"
+	"github.com/nminhquan/mas/model"
+	"github.com/nminhquan/mas/utils"
 
 	"go.etcd.io/etcd/etcdserver/api/snap"
 )

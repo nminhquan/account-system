@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/config"
+	"github.com/nminhquan/mas/config"
 
 	"go.etcd.io/etcd/etcdserver/api/rafthttp"
 	"go.etcd.io/etcd/etcdserver/api/snap"

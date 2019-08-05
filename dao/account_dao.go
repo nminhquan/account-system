@@ -4,8 +4,8 @@ import (
 	"log"
 	"strconv"
 
-	. "gitlab.zalopay.vn/quannm4/mas/db"
-	"gitlab.zalopay.vn/quannm4/mas/model"
+	. "github.com/nminhquan/mas/db"
+	"github.com/nminhquan/mas/model"
 )
 
 type AccountDAO interface {

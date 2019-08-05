@@ -5,11 +5,11 @@ import (
 	"log"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/utils"
 
-	"gitlab.zalopay.vn/quannm4/mas/db"
+	"github.com/nminhquan/mas/db"
 
-	"gitlab.zalopay.vn/quannm4/mas/model"
+	"github.com/nminhquan/mas/model"
 )
 
 type TxnCoordinatorDAO interface {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gitlab.zalopay.vn/quannm4/mas/db"
+	"github.com/nminhquan/mas/db"
 )
 
 type FakeDB struct {

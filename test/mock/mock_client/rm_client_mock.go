@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	model "gitlab.zalopay.vn/quannm4/mas/model"
+	model "github.com/nminhquan/mas/model"
 )
 
 // MockClient is a mock of Client interface

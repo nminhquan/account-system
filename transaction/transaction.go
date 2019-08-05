@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/theodesp/blockingQueues"
-	"gitlab.zalopay.vn/quannm4/mas/client"
-	"gitlab.zalopay.vn/quannm4/mas/model"
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/client"
+	"github.com/nminhquan/mas/model"
+	"github.com/nminhquan/mas/utils"
 )
 
 type Transaction interface {

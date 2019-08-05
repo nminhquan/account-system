@@ -6,18 +6,18 @@ import (
 	"log"
 	"strconv"
 
-	"gitlab.zalopay.vn/quannm4/mas/config"
-	"gitlab.zalopay.vn/quannm4/mas/node"
-	"gitlab.zalopay.vn/quannm4/mas/transaction"
+	"github.com/nminhquan/mas/config"
+	"github.com/nminhquan/mas/node"
+	"github.com/nminhquan/mas/transaction"
 	"go.etcd.io/etcd/raft/raftpb"
 
-	"gitlab.zalopay.vn/quannm4/mas/client"
+	"github.com/nminhquan/mas/client"
 
-	"gitlab.zalopay.vn/quannm4/mas/consensus"
-	"gitlab.zalopay.vn/quannm4/mas/db"
-	rm "gitlab.zalopay.vn/quannm4/mas/resource_manager"
+	"github.com/nminhquan/mas/consensus"
+	"github.com/nminhquan/mas/db"
+	rm "github.com/nminhquan/mas/resource_manager"
 
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/utils"
 )
 
 func makeConfig() consensus.RaftClusterConfig {

@@ -8,15 +8,15 @@ import (
 	"strings"
 	"sync"
 
-	"gitlab.zalopay.vn/quannm4/mas/config"
+	"github.com/nminhquan/mas/config"
 
-	"gitlab.zalopay.vn/quannm4/mas/client"
-	"gitlab.zalopay.vn/quannm4/mas/credentials"
-	"gitlab.zalopay.vn/quannm4/mas/dao"
-	"gitlab.zalopay.vn/quannm4/mas/db"
-	"gitlab.zalopay.vn/quannm4/mas/model"
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/client"
+	"github.com/nminhquan/mas/credentials"
+	"github.com/nminhquan/mas/dao"
+	"github.com/nminhquan/mas/db"
+	"github.com/nminhquan/mas/model"
+	pb "github.com/nminhquan/mas/proto"
+	"github.com/nminhquan/mas/utils"
 
 	"google.golang.org/grpc"
 	grpc_creds "google.golang.org/grpc/credentials"

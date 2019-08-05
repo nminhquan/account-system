@@ -7,7 +7,7 @@ package mock_dao
 import (
 	reflect "reflect"
 
-	model "gitlab.zalopay.vn/quannm4/mas/model"
+	model "github.com/nminhquan/mas/model"
 
 	gomock "github.com/golang/mock/gomock"
 )

@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/credentials"
+	"github.com/nminhquan/mas/credentials"
 
-	"gitlab.zalopay.vn/quannm4/mas/client"
+	"github.com/nminhquan/mas/client"
 
 	"github.com/myzhan/boomer"
 )

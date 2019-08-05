@@ -4,9 +4,9 @@ import (
 	"flag"
 	"log"
 
-	"gitlab.zalopay.vn/quannm4/mas/client"
+	"github.com/nminhquan/mas/client"
 
-	"gitlab.zalopay.vn/quannm4/mas/credentials"
+	"github.com/nminhquan/mas/credentials"
 )
 
 func main() {

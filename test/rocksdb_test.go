@@ -6,7 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gitlab.zalopay.vn/quannm4/mas/db"
+	"github.com/nminhquan/mas/db"
 )
 
 const TEST_KEY = "__key__"

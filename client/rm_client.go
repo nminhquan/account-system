@@ -7,9 +7,9 @@ import (
 	"log"
 	"time"
 
-	"gitlab.zalopay.vn/quannm4/mas/model"
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
-	"gitlab.zalopay.vn/quannm4/mas/utils"
+	"github.com/nminhquan/mas/model"
+	pb "github.com/nminhquan/mas/proto"
+	"github.com/nminhquan/mas/utils"
 
 	"google.golang.org/grpc"
 )

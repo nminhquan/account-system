@@ -1,8 +1,8 @@
 package dao
 
 import (
-	. "gitlab.zalopay.vn/quannm4/mas/db"
-	. "gitlab.zalopay.vn/quannm4/mas/model"
+	. "github.com/nminhquan/mas/db"
+	. "github.com/nminhquan/mas/model"
 )
 
 type PaymentDAO interface {

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	pb "gitlab.zalopay.vn/quannm4/mas/proto"
+	pb "github.com/nminhquan/mas/proto"
 )
 
 type LockClient interface {
