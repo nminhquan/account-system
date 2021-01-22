@@ -27,10 +27,10 @@ ENV username=${username}
 ARG password=${password:-""}
 ENV password=${password}
 
-RUN echo "machine gitlab.zalopay.vn login ${username} password ${password}" > ~/.netrc
+# RUN echo "machine gitlab.zalopay.vn login ${username} password ${password}" > ~/.netrc
 # RUN ping localhost
 RUN go mod download
-RUN rm -rf ~/.netrc 
+# RUN rm -rf ~/.netrc 
 # Build the binary.
 RUN GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="-w -s" -o /go/bin/mas
 RUN go get github.com/mattn/goreman
